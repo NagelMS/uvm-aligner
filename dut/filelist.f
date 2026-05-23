@@ -1,0 +1,9 @@
+../dut/cfs_synch.v
+../dut/cfs_synch_fifo.v
+../dut/cfs_edge_detect.v
+../dut/cfs_rx_ctrl.v
+../dut/cfs_ctrl.v
+../dut/cfs_tx_ctrl.v
+../dut/cfs_regs.v
+../dut/cfs_aligner_core.v
+../dut/cfs_aligner.v

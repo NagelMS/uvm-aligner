@@ -35,8 +35,8 @@ endif
 
 comp: check
 ifndef ERR_STATUS
-	vcs $(COMP_OPTS)          \
-	    $(DUT_DIR)/design.v   \
+	vcs $(COMP_OPTS)              \
+	    -f $(DUT_DIR)/filelist.f  \
 	    $(TEST_DIR)/aligner_tb.sv
 endif
 
