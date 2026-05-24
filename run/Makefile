@@ -2,8 +2,8 @@
 PROJECT_NAME = uvm-aligner
 
 
-DUT_DIR  = ../dut
-TEST_DIR = ../test
+DUT_DIR = ../dut
+TB_DIR  = ../tb
 
 
 
@@ -35,9 +35,9 @@ endif
 
 comp: check
 ifndef ERR_STATUS
-	vcs $(COMP_OPTS)              \
-	    -f $(DUT_DIR)/filelist.f  \
-	    $(TEST_DIR)/aligner_tb.sv
+	vcs $(COMP_OPTS)             \
+	    -f $(DUT_DIR)/filelist.f \
+	    -f $(TB_DIR)/filelist.f
 endif
 
 run: check
