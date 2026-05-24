@@ -1,0 +1,139 @@
+addrmap ALIGNER {
+    name = "APB Aligner Access";
+    desc = "Address map for APB Aligner";
+
+    reg CTRL {
+        name = "Control Register";
+        desc = "Control register for the aligner";
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 3'b001; 
+        } SIZE[2:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 2'b00;
+        } OFFSET[9:8];
+
+        field {
+            sw = w;
+            hw = r;
+            singlepulse;        
+            reset = 1'b0;
+        } CLR[16:16];
+
+    } CTRL @0x00;
+
+
+    reg STATUS {
+        name = "Status Register";
+        desc = "Status register for the aligner";
+
+        field {
+            sw = r;
+            hw = w;
+            reset = 8'b0;
+        } CNT_DROP[7:0];
+
+        field {
+            sw = r;
+            hw = w;
+            reset = 4'b0;
+        } RX_LVL[11:8];
+
+        field {
+            sw = r;
+            hw = w;
+            reset = 4'b0;
+        } TX_LVL[19:16];
+
+    } STATUS @0x0C;
+
+
+    reg IRQEN {
+        name = "Interrupt Requests Enable Register";
+        desc = "Interrupt enable register for the aligner";
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        } RX_FIFO_EMPTY[0:0];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        } RX_FIFO_FULL[1:1];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        } TX_FIFO_EMPTY[2:2];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        } TX_FIFO_FULL[3:3];
+
+        field {
+            sw = rw;
+            hw = r;
+            reset = 1'b0;
+        } MAX_DROP[4:4];
+
+    } IRQEN @0xF0;
+
+
+    reg IRQ {
+        name = "Interrupt Requests Register";
+        desc = "Interrupt register for the aligner";
+
+        field {
+            sw = rw;
+            onwrite = woclr;    
+            hw = w;
+            hwset;              
+            reset = 1'b0;
+        } RX_FIFO_EMPTY[0:0];
+
+        field {
+            sw = rw;
+            onwrite = woclr;
+            hw = w;
+            hwset;
+            reset = 1'b0;
+        } RX_FIFO_FULL[1:1];
+
+        field {
+            sw = rw;
+            onwrite = woclr;
+            hw = w;
+            hwset;
+            reset = 1'b0;
+        } TX_FIFO_EMPTY[2:2];
+
+        field {
+            sw = rw;
+            onwrite = woclr;
+            hw = w;
+            hwset;
+            reset = 1'b0;
+        } TX_FIFO_FULL[3:3];
+
+        field {
+            sw = rw;
+            onwrite = woclr;
+            hw = w;
+            hwset;
+            reset = 1'b0;
+        } MAX_DROP[4:4];
+
+    } IRQ @0xF4;
+
+};
