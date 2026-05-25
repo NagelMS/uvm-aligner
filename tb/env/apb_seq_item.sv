@@ -1,11 +1,5 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_seq_item.sv
-// Description: Transaccion APB. Representa una escritura o lectura al DUT.
-//              Los campos addr/data/write son compatibles con uvm_reg_bus_op
-//              para que el adaptador RAL pueda convertirlos directamente.
-///////////////////////////////////////////////////////////////////////////////
-`ifndef APB_SEQ_ITEM_SV
-`define APB_SEQ_ITEM_SV
+`include "uvm_macros.svh"
+import uvm_pkg::*;
 
 class apb_seq_item extends uvm_sequence_item;
 
@@ -18,8 +12,8 @@ class apb_seq_item extends uvm_sequence_item;
 
   rand logic [15:0] addr;
   rand logic [31:0] data;
-  rand logic        write;   // 1 = escritura, 0 = lectura
-       logic        slverr;  // respuesta del DUT (no aleatorizable)
+  rand logic        write;
+       logic        slverr; 
 
   function new(string name = "apb_seq_item");
     super.new(name);
@@ -32,4 +26,3 @@ class apb_seq_item extends uvm_sequence_item;
 
 endclass
 
-`endif

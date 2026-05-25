@@ -1,16 +1,6 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_agent.sv
-// Description: Agente APB UVM. Contiene sequencer, driver y monitor.
-//              Expone analysis_port para que el predictor RAL lo conecte.
-//              Soporta modo activo (drv+sqr+mon) y pasivo (solo mon).
-///////////////////////////////////////////////////////////////////////////////
-`ifndef APB_AGENT_SV
-`define APB_AGENT_SV
-
 class apb_agent extends uvm_agent;
   `uvm_component_utils(apb_agent)
 
-  // Puerto de análisis expuesto al ambiente (se conecta al predictor RAL)
   uvm_analysis_port #(apb_seq_item) ap;
 
   apb_sequencer sqr;
@@ -31,7 +21,6 @@ class apb_agent extends uvm_agent;
   endfunction
 
   function void connect_phase(uvm_phase phase);
-    // El ap del agente apunta directamente al ap del monitor
     ap = mon.ap;
     if (get_is_active() == UVM_ACTIVE)
       drv.seq_item_port.connect(sqr.seq_item_export);
@@ -39,4 +28,3 @@ class apb_agent extends uvm_agent;
 
 endclass
 
-`endif

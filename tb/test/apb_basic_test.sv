@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_basic_test.sv
-// Description: Test temporal para ejercitar el agente APB.
-//              Tests 1 y 2: accesos de registro via agente.
-//              Test 3: flujo MD manejado directo desde el TB (sin agente MD).
-///////////////////////////////////////////////////////////////////////////////
-`ifndef APB_BASIC_TEST_SV
-`define APB_BASIC_TEST_SV
-
-// ── Secuencia: Tests 1 y 2 (lectura/escritura de registros) ──────────────────
 class apb_reg_seq extends uvm_sequence #(apb_seq_item);
   `uvm_object_utils(apb_reg_seq)
 
@@ -53,7 +43,6 @@ class apb_reg_seq extends uvm_sequence #(apb_seq_item);
 endclass
 
 
-// ── Test ──────────────────────────────────────────────────────────────────────
 class apb_basic_test extends uvm_test;
   `uvm_component_utils(apb_basic_test)
 
@@ -83,5 +72,3 @@ class apb_basic_test extends uvm_test;
   endtask
 
 endclass
-
-`endif

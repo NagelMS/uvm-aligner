@@ -1,13 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_monitor.sv
-// Description: Monitor APB. Observa la interfaz y publica apb_seq_item en
-//              el analysis_port. El predictor RAL se conectará aquí.
-//              Captura la transacción completa al final del ACCESS phase
-//              (psel & penable & pready).
-///////////////////////////////////////////////////////////////////////////////
-`ifndef APB_MONITOR_SV
-`define APB_MONITOR_SV
-
 class apb_monitor extends uvm_monitor;
   `uvm_component_utils(apb_monitor)
 
@@ -44,5 +34,3 @@ class apb_monitor extends uvm_monitor;
   endtask
 
 endclass
-
-`endif

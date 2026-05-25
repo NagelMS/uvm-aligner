@@ -1,12 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_driver.sv
-// Description: Driver APB. Convierte apb_seq_item en transacciones APB sobre
-//              la interfaz física. Sin clocking blocks; usa @(posedge clk)
-//              seguido de #1 para evitar setup hazards.
-///////////////////////////////////////////////////////////////////////////////
-`ifndef APB_DRIVER_SV
-`define APB_DRIVER_SV
-
 class apb_driver extends uvm_driver #(apb_seq_item);
   `uvm_component_utils(apb_driver)
 
@@ -38,7 +29,6 @@ class apb_driver extends uvm_driver #(apb_seq_item);
     end
   endtask
 
-  // ── Tareas privadas ────────────────────────────────────────────────────────
 
   task _idle();
     @(posedge vif.clk); #1;
@@ -93,5 +83,3 @@ class apb_driver extends uvm_driver #(apb_seq_item);
   endtask
 
 endclass
-
-`endif
