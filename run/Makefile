@@ -14,9 +14,10 @@ ifndef VCS_HOME
   ERR_STATUS = 1
 endif
 
-COMP_OPTS = -sverilog -l vcs.log         \
-            +incdir+$(DUT_DIR)            \
-            -timescale=1ns/1ps            \
+COMP_OPTS = -sverilog -l vcs.log   \
+            +incdir+$(DUT_DIR)    \
+            -timescale=1ns/1ps    \
+            -ntb_opts uvm-1.2     \
             -debug_all
 
 RUN_OPTS = +ntb_random_seed=$(SEED) -l simv.log

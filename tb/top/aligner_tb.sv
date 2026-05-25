@@ -1,8 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 // File:        aligner_tb.sv
-// Description: Dummy testbench for cfs_aligner.
+// Description: Top testbench para cfs_aligner con agente APB UVM.
+//              Tests 1 y 2 usan el agente. Test 3 (MD flow) se maneja
+//              directamente desde el TB mientras no existe agente MD.
 ///////////////////////////////////////////////////////////////////////////////
 `timescale 1ns/1ps
+`include "uvm_macros.svh"
+import uvm_pkg::*;
 
 module aligner_tb;
 
@@ -16,7 +20,6 @@ module aligner_tb;
   md_if  rx  (.clk(clk));
   md_if  tx  (.clk(clk));
 
-  // apb_if es quien controla reset_n; rx y tx lo observan
   assign rx.reset_n = apb.reset_n;
   assign tx.reset_n = apb.reset_n;
 
@@ -54,100 +57,25 @@ module aligner_tb;
   initial clk = 1'b0;
   always  #5 clk = ~clk;
 
-  // ── APB write task ────────────────────────────────────────────────────────
-  task automatic apb_write(
-    input logic [15:0] addr,
-    input logic [31:0] data
-  );
-    @(posedge clk);
-    apb.paddr   <= addr;
-    apb.pwrite  <= 1'b1;
-    apb.psel    <= 1'b1;
-    apb.penable <= 1'b0;
-    apb.pwdata  <= data;
-    @(posedge clk);
-    apb.penable <= 1'b1;
-    @(posedge clk);
-    while (!apb.pready) @(posedge clk);
-    $display("[APB WR] addr=0x%04h  data=0x%08h  slverr=%0b", addr, data, apb.pslverr);
-    apb.psel    <= 1'b0;
-    apb.penable <= 1'b0;
-    apb.pwrite  <= 1'b0;
-  endtask
-
-  // ── APB read task ─────────────────────────────────────────────────────────
-  task automatic apb_read(
-    input  logic [15:0] addr,
-    output logic [31:0] rdata
-  );
-    @(posedge clk);
-    apb.paddr   <= addr;
-    apb.pwrite  <= 1'b0;
-    apb.psel    <= 1'b1;
-    apb.penable <= 1'b0;
-    @(posedge clk);
-    apb.penable <= 1'b1;
-    @(posedge clk);
-    while (!apb.pready) @(posedge clk);
-    rdata = apb.prdata;
-    $display("[APB RD] addr=0x%04h  data=0x%08h", addr, rdata);
-    apb.psel    <= 1'b0;
-    apb.penable <= 1'b0;
-  endtask
-
-  // ── Error counter ─────────────────────────────────────────────────────────
-  int errors = 0;
-
-  // ── Main test sequence ────────────────────────────────────────────────────
+  // ── Reset y señales MD (manejadas directamente, sin agente MD) ────────────
   initial begin
-    apb.paddr   = '0;
-    apb.pwrite  = 1'b0;
-    apb.psel    = 1'b0;
-    apb.penable = 1'b0;
-    apb.pwdata  = '0;
+    apb.reset_n = 1'b0;
     rx.valid    = 1'b0;
     rx.data     = '0;
     rx.offset   = '0;
     rx.size     = '0;
-    tx.ready        = 1'b1;
-    tx.err          = 1'b0;
-    apb.reset_n     = 1'b0;
-
-    $display("\n[TB] Applying reset...");
+    tx.ready    = 1'b1;
+    tx.err      = 1'b0;
     repeat(5) @(posedge clk);
     apb.reset_n = 1'b1;
-    repeat(3) @(posedge clk);
-    $display("[TB] Reset released.");
+    `uvm_info("TB", "Reset released.", UVM_LOW)
+  end
 
-    // ── Test 1: CTRL default ─────────────────────────────────────────────
-    $display("\n=== Test 1: CTRL default value (SIZE=1, OFFSET=0) ===");
-    begin
-      automatic logic [31:0] rd;
-      apb_read(16'h0000, rd);
-      if (rd === 32'h0000_0001)
-        $display("PASS: CTRL = 0x%08h", rd);
-      else begin
-        $display("FAIL: Expected CTRL=0x00000001, got 0x%08h", rd);
-        errors++;
-      end
-    end
-
-    // ── Test 2: Configurar CTRL SIZE=4, OFFSET=0 ─────────────────────────
-    $display("\n=== Test 2: Write CTRL SIZE=4, OFFSET=0 ===");
-    apb_write(16'h0000, 32'h0000_0004);
-    begin
-      automatic logic [31:0] rd;
-      apb_read(16'h0000, rd);
-      if (rd === 32'h0000_0004)
-        $display("PASS: CTRL = 0x%08h", rd);
-      else begin
-        $display("FAIL: Expected CTRL=0x00000004, got 0x%08h", rd);
-        errors++;
-      end
-    end
-
-    // ── Test 3: Flujo RX → Aligner → TX ──────────────────────────────────
-    $display("\n=== Test 3: RX packet flow through aligner ===");
+  // ── Test 3: Flujo RX → Aligner → TX (se ejecuta con el APB ya configurado)
+  initial begin
+    // Esperar reset + tiempo para que el agente APB configure CTRL (Test 2)
+    #400;
+    `uvm_info("TB", "\n=== Test 3: RX packet flow through aligner ===", UVM_LOW)
     fork
       begin
         @(posedge clk);
@@ -156,43 +84,35 @@ module aligner_tb;
         rx.offset <= '0;
         rx.size   <= 3'd4;
         do @(posedge clk); while (!rx.ready);
-        $display("[RX] Handshake done: data=0x%08h size=%0d offset=%0d err=%0b",
-                 rx.data, rx.size, rx.offset, rx.err);
+        `uvm_info("TB", $sformatf("[RX] Handshake: data=0x%08h size=%0d offset=%0d err=%0b",
+                                   rx.data, rx.size, rx.offset, rx.err), UVM_LOW)
         @(posedge clk);
         rx.valid <= 1'b0;
       end
       begin
         @(posedge tx.valid);
-        $display("[TX] Received: data=0x%08h size=%0d offset=%0d",
-                 tx.data, tx.size, tx.offset);
         if (tx.data   === 32'hDEAD_BEEF &&
             tx.size   === 3'd4           &&
             tx.offset === '0)
-          $display("PASS: TX data matches expected values");
-        else begin
-          $display("FAIL: TX mismatch. Expected data=0xDEADBEEF size=4 offset=0");
-          errors++;
-        end
+          `uvm_info("TB",  $sformatf("PASS T3: TX data=0x%08h size=%0d offset=%0d",
+                                      tx.data, tx.size, tx.offset), UVM_LOW)
+        else
+          `uvm_error("TB", $sformatf("FAIL T3: TX mismatch. data=0x%08h size=%0d offset=%0d",
+                                      tx.data, tx.size, tx.offset))
       end
     join
+  end
 
-    repeat(5) @(posedge clk);
-
-    $display("\n==========================================");
-    if (errors == 0)
-      $display("  ALL TESTS PASSED  (%0d errors)", errors);
-    else
-      $display("  SIMULATION FAILED (%0d error(s))", errors);
-    $display("==========================================\n");
-
-    $finish;
+  // ── UVM: pasar interfaces y arrancar el test ──────────────────────────────
+  initial begin
+    uvm_config_db #(virtual apb_if)::set(null, "uvm_test_top.*", "apb_vif", apb);
+    run_test("apb_basic_test");
   end
 
   // ── Timeout watchdog ──────────────────────────────────────────────────────
   initial begin
     #100_000;
-    $display("[TB] TIMEOUT: Simulation exceeded time limit");
-    $finish;
+    `uvm_fatal("TB", "TIMEOUT: Simulation exceeded time limit")
   end
 
   // ── VCD dump ──────────────────────────────────────────────────────────────
