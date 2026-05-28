@@ -1,5 +1,6 @@
 `include "uvm_macros.svh"
 import uvm_pkg::*;
+import aligner_ral_pkg::*;
 
 class apb_seq_item extends uvm_sequence_item;
 

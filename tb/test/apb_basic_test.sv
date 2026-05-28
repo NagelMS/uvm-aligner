@@ -1,43 +1,32 @@
 class apb_reg_seq extends uvm_sequence #(apb_seq_item);
   `uvm_object_utils(apb_reg_seq)
 
+  ALIGNER regmodel;
+
   function new(string name = "apb_reg_seq");
     super.new(name);
   endfunction
 
   task body();
-    apb_seq_item tr;
+    uvm_status_e   status;
+    uvm_reg_data_t val;
 
     // ── Test 1: CTRL default (SIZE=1, OFFSET=0) ────────────────────────────
     `uvm_info("SEQ", "\n=== Test 1: CTRL default value (SIZE=1, OFFSET=0) ===", UVM_LOW)
-    tr = apb_seq_item::type_id::create("tr");
-    start_item(tr);
-    tr.addr  = 16'h0000;
-    tr.write = 1'b0;
-    finish_item(tr);
-    if (tr.data === 32'h0000_0001)
-      `uvm_info("SEQ",  $sformatf("PASS T1: CTRL = 0x%08h", tr.data), UVM_LOW)
+    regmodel.CTRL.read(status, val);
+    if (val[2:0] === 3'h1 && val[9:8] === 2'h0)
+      `uvm_info("SEQ",  $sformatf("PASS T1: CTRL = 0x%08h", val), UVM_LOW)
     else
-      `uvm_error("SEQ", $sformatf("FAIL T1: expected 0x00000001, got 0x%08h", tr.data))
+      `uvm_error("SEQ", $sformatf("FAIL T1: expected SIZE=1 OFFSET=0, got 0x%08h", val))
 
-    // ── Test 2: Write CTRL SIZE=4, OFFSET=0 ───────────────────────────────
+    // ── Test 2: Write CTRL SIZE=4, OFFSET=0, read back ────────────────────
     `uvm_info("SEQ", "\n=== Test 2: Write CTRL SIZE=4, OFFSET=0 ===", UVM_LOW)
-    tr = apb_seq_item::type_id::create("tr");
-    start_item(tr);
-    tr.addr  = 16'h0000;
-    tr.write = 1'b1;
-    tr.data  = 32'h0000_0004;
-    finish_item(tr);
-
-    tr = apb_seq_item::type_id::create("tr");
-    start_item(tr);
-    tr.addr  = 16'h0000;
-    tr.write = 1'b0;
-    finish_item(tr);
-    if (tr.data === 32'h0000_0004)
-      `uvm_info("SEQ",  $sformatf("PASS T2: CTRL = 0x%08h", tr.data), UVM_LOW)
+    regmodel.CTRL.write(status, 32'h0000_0004);
+    regmodel.CTRL.read(status, val);
+    if (val[2:0] === 3'h4)
+      `uvm_info("SEQ",  $sformatf("PASS T2: CTRL = 0x%08h", val), UVM_LOW)
     else
-      `uvm_error("SEQ", $sformatf("FAIL T2: expected 0x00000004, got 0x%08h", tr.data))
+      `uvm_error("SEQ", $sformatf("FAIL T2: expected SIZE=4, got 0x%08h", val))
   endtask
 
 endclass
@@ -46,7 +35,7 @@ endclass
 class apb_basic_test extends uvm_test;
   `uvm_component_utils(apb_basic_test)
 
-  apb_agent agent;
+  aligner_env env;
 
   function new(string name = "apb_basic_test", uvm_component parent = null);
     super.new(name, parent);
@@ -54,16 +43,16 @@ class apb_basic_test extends uvm_test;
 
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    uvm_config_db #(uvm_active_passive_enum)::set(this, "agent", "is_active", UVM_ACTIVE);
-    agent = apb_agent::type_id::create("agent", this);
+    env = aligner_env::type_id::create("env", this);
   endfunction
 
   task run_phase(uvm_phase phase);
     apb_reg_seq seq;
     phase.raise_objection(this);
 
-    seq = apb_reg_seq::type_id::create("seq");
-    seq.start(agent.sqr);
+    seq          = apb_reg_seq::type_id::create("seq");
+    seq.regmodel = env.regmodel;
+    seq.start(env.apb_agt.sqr);
 
     // Dar tiempo al Test 3 (flujo MD manual en el TB) para que complete
     #500;
