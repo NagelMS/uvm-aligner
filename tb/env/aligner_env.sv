@@ -19,6 +19,7 @@ class aligner_env extends uvm_env;
   ALIGNER                           regmodel;
   apb_ral_adapter                   adapter;
   uvm_reg_predictor #(apb_seq_item) predictor;
+  md_agent #(32)                    md_agent;
 
   function new(string name = "aligner_env", uvm_component parent = null);
     super.new(name, parent);
@@ -44,6 +45,11 @@ class aligner_env extends uvm_env;
     // Predictor explícito parametrizado con el tipo de transacción del bus
     predictor = uvm_reg_predictor #(apb_seq_item)::type_id::create(
       "predictor", this);
+
+    // Agente MD en modo activo
+    uvm_config_db #(uvm_active_passive_enum)::set(
+      this, "md_agt", "is_active", UVM_ACTIVE);
+    md_agt = md_agent #(32)::type_id::create("md_agt", this);
   endfunction
 
   // ── Connect Phase ─────────────────────────────────────────────────────────

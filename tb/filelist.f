@@ -15,6 +15,14 @@
 // RAL adapter (depende de apb_seq_item)
 ../tb/ral/apb_ral_adapter.sv
 
+// Environment - MD agent
+../tb/env/md_seq_item.sv
+../tb/env/md_sequencer.sv
+../tb/env/md_rx_driver.sv
+../tb/env/md_tx_driver.sv
+../tb/env/md_monitor.sv
+../tb/env/md_agent.sv
+
 // Environment top (depende de agente + adaptador + ALIGNER)
 ../tb/env/aligner_env.sv
 

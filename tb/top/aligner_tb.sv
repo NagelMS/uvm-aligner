@@ -91,6 +91,8 @@ module aligner_tb;
 
   initial begin
     uvm_config_db #(virtual apb_if)::set(null, "uvm_test_top.*", "apb_vif", apb);
+    uvm_config_db #(virtual md_if #(ALGN_DATA_WIDTH))::set(null, "uvm_test_top.*", "md_rx_vif", rx);
+    uvm_config_db #(virtual md_if #(ALGN_DATA_WIDTH))::set(null, "uvm_test_top.*", "md_tx_vif", tx);
     run_test("apb_basic_test");
   end
 
