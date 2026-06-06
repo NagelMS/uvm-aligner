@@ -11,7 +11,7 @@ class md_agent #(
   md_rx_driver #(ALGN_DATA_WIDTH) rx_drv;
   md_tx_driver #(ALGN_DATA_WIDTH) tx_drv;
 
-    md_monitor #(ALGN_DATA_WIDTH, 1) rx_mon;  // IS_RX=1
+  md_monitor #(ALGN_DATA_WIDTH, 1) rx_mon;  // IS_RX=1
   md_monitor #(ALGN_DATA_WIDTH, 0) tx_mon;  // IS_RX=0
 
   uvm_analysis_port #(md_seq_item #(ALGN_DATA_WIDTH)) rx_ap;

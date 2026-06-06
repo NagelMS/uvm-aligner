@@ -68,6 +68,9 @@ class aligner_env extends uvm_env;
 
     // 4. Monitor → predictor: cada transacción APB actualiza el espejo RAL
     apb_agt.ap.connect(predictor.bus_in);
+    apb_agt.ap.connect(m_analysis_imp_apb_bus);
+    md_agent.rx_ap.connect(m_analysis_imp_md_rx);
+    md_agent.tx_ap.connect(m_analysis_imp_md_tx);
   endfunction
 
 endclass
