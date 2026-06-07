@@ -9,25 +9,26 @@ Using: aligner_base_test
 
 +UVM_TESTNAME=aligner_base_test
 
-// CTRL: 0 = el test randomiza entre {1,2,4} con offset legal
+// CTRL inicial: 0 = test randomiza entre {1,2,4} con offset legal segun seed
 +CTRL_SIZE=0
 
-// 100 paquetes para cubrir distintas combinaciones con cada seed
+// 100 paquetes; la secuencia cambia CTRL 8 veces con combos legales aleatorios
 +NUM_PACKETS=100
++NUM_CTRL_CHANGES=8
 
-// Back-to-back: maxima tasa de transferencia
+// Back-to-back
 +INTER_PKT_CYCLES=0
 
-// Modo RX: 0=RAND legal (size/offset siempre validos)
+// Modo RX: 0=RAND legal
 +RX_SIZE_MODE=0
 
-// Sin backpressure: TX siempre listo (foco en RX->TX)
+// Sin backpressure: TX siempre listo
 +BP_MODE=0
 
-// Lectura activa de STATUS durante el trafico
+// Lectura activa de STATUS
 +POLL_STATUS=1
 +POLL_PERIOD_CYCLES=10
 
-// Sin interrupciones para este test
+// Sin interrupciones
 +IRQEN=0
 +IRQ_CLEAR=0

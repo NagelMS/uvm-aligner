@@ -24,9 +24,9 @@ class aligner_base_test extends uvm_test;
 
   int unsigned n_packets          = 4;
   int unsigned inter_pkt_cycles   = 0;
-  int          rx_size_mode_i     = 0;   // cast a rx_size_mode_e en run_phase
+  int          rx_size_mode_i     = 0;
 
-  int          bp_mode_i          = 0;   // cast a md_tx_bp_mode_e en run_phase
+  int          bp_mode_i          = 0;
   int unsigned bp_delay           = 0;
 
   bit          poll_status_en     = 0;
@@ -38,11 +38,9 @@ class aligner_base_test extends uvm_test;
   int unsigned illegal_ctrl_off   = 0;
   bit          clear_fifo_cnt_en  = 0;
 
-  // Cambio de CTRL a mitad de ejecución (un solo punto de cambio via plusargs)
-  bit          ctrl_mid_en        = 0;
-  int unsigned ctrl_mid_at_pkt    = 0;
-  int unsigned ctrl_mid_size      = 4;
-  int unsigned ctrl_mid_offset    = 0;
+  // NUM_CTRL_CHANGES=N → la secuencia aplica N cambios aleatorios legales
+  // de CTRL distribuidos uniformemente a lo largo del tráfico
+  int unsigned num_ctrl_changes   = 0;
 
   function new(string name = "aligner_base_test", uvm_component parent = null);
     super.new(name, parent);
@@ -79,11 +77,8 @@ class aligner_base_test extends uvm_test;
     if ($value$plusargs("ILLEGAL_CTRL_OFFSET=%d",tmp)) illegal_ctrl_off   = tmp;
     if ($value$plusargs("CLEAR_FIFO_CNT=%d",     tmp)) clear_fifo_cnt_en  = bit'(tmp);
 
-    // Cambio de CTRL a mitad de ejecución
-    if ($value$plusargs("CTRL_MID_EN=%d",        tmp)) ctrl_mid_en        = bit'(tmp);
-    if ($value$plusargs("CTRL_MID_AT_PKT=%d",    tmp)) ctrl_mid_at_pkt    = tmp;
-    if ($value$plusargs("CTRL_MID_SIZE=%d",      tmp)) ctrl_mid_size      = tmp;
-    if ($value$plusargs("CTRL_MID_OFFSET=%d",    tmp)) ctrl_mid_offset    = tmp;
+    // Cambios de CTRL durante la ejecución
+    if ($value$plusargs("NUM_CTRL_CHANGES=%d",   tmp)) num_ctrl_changes   = tmp;
 
     `uvm_info("TEST", $sformatf(
       {"\n=== aligner_base_test plusargs leídos ===\n",
@@ -92,13 +87,13 @@ class aligner_base_test extends uvm_test;
        "  BP_MODE=%0d  BP_DELAY=%0d\n",
        "  POLL_STATUS=%0b  POLL_PERIOD_CYCLES=%0d\n",
        "  IRQ_CLEAR=%0b  ILLEGAL_CTRL=%0b  CLEAR_FIFO_CNT=%0b\n",
-       "  CTRL_MID_EN=%0b  at_pkt=%0d  size=%0d  offset=%0d"},
+       "  NUM_CTRL_CHANGES=%0d"},
       ctrl_size, ctrl_offset, irqen_val_i,
       n_packets, inter_pkt_cycles, rx_size_mode_i,
       bp_mode_i, bp_delay,
       poll_status_en, poll_period_cycles,
       irq_clear_en, illegal_ctrl_en, clear_fifo_cnt_en,
-      ctrl_mid_en, ctrl_mid_at_pkt, ctrl_mid_size, ctrl_mid_offset),
+      num_ctrl_changes),
       UVM_MEDIUM)
   endfunction
 
@@ -106,7 +101,7 @@ class aligner_base_test extends uvm_test;
   task run_phase(uvm_phase phase);
     aligner_main_seq seq;
     phase.raise_objection(this);
-    phase.phase_done.set_drain_time(this, 2000);  // 2 µs = 200 ciclos de margen
+    phase.phase_done.set_drain_time(this, 2000);
 
     // CTRL_SIZE=0 → elegir tamaño legal al azar y offset alineado
     if (ctrl_size == 0) begin
@@ -129,16 +124,16 @@ class aligner_base_test extends uvm_test;
     seq.regmodel = env.regmodel;
     seq.tx_drv   = env.md_agt.tx_drv;
 
-    seq.ctrl_size   = ctrl_size;
-    seq.ctrl_offset = ctrl_offset;
-    seq.irqen_val   = irqen_val_i[4:0];
+    seq.ctrl_size         = ctrl_size;
+    seq.ctrl_offset       = ctrl_offset;
+    seq.irqen_val         = irqen_val_i[4:0];
 
-    seq.n_packets        = n_packets;
-    seq.inter_pkt_cycles = inter_pkt_cycles;
-    seq.rx_size_mode     = rx_size_mode_e'(rx_size_mode_i);
+    seq.n_packets         = n_packets;
+    seq.inter_pkt_cycles  = inter_pkt_cycles;
+    seq.rx_size_mode      = rx_size_mode_e'(rx_size_mode_i);
 
-    seq.bp_mode  = md_tx_bp_mode_e'(bp_mode_i);
-    seq.bp_delay = bp_delay;
+    seq.bp_mode           = md_tx_bp_mode_e'(bp_mode_i);
+    seq.bp_delay          = bp_delay;
 
     seq.poll_status_en     = poll_status_en;
     seq.poll_period_cycles = poll_period_cycles;
@@ -149,14 +144,7 @@ class aligner_base_test extends uvm_test;
     seq.illegal_ctrl_offset   = illegal_ctrl_off;
     seq.clear_fifo_cnt_en     = clear_fifo_cnt_en;
 
-    // Poblar ctrl_changes si se pidió un cambio de CTRL a mitad de ejecución
-    if (ctrl_mid_en) begin
-      ctrl_change_t ch;
-      ch.at_pkt = ctrl_mid_at_pkt;
-      ch.size   = ctrl_mid_size;
-      ch.offset = ctrl_mid_offset;
-      seq.ctrl_changes.push_back(ch);
-    end
+    seq.num_ctrl_changes  = num_ctrl_changes;
 
     seq.start(env.md_agt.sqr);
     phase.drop_objection(this);

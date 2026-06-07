@@ -11,6 +11,7 @@ Using: aligner_base_test
 
 // Cantidad de paquetes
 +NUM_PACKETS=50
++NUM_CTRL_CHANGES=0
 
 // Paquetes back-to-back
 +INTER_PKT_CYCLES=0
