@@ -1,0 +1,33 @@
+=======================================================
+Rx Legal Combination Test
+
+Corner case: "Flujo de paquetes validos y combinacion legal
+             de size y offset en registro de control"
+
+Using: aligner_base_test
+=======================================================
+
++UVM_TESTNAME=aligner_base_test
+
+// CTRL: 0 = el test randomiza entre {1,2,4} con offset legal
++CTRL_SIZE=0
+
+// 100 paquetes para cubrir distintas combinaciones con cada seed
++NUM_PACKETS=100
+
+// Back-to-back: maxima tasa de transferencia
++INTER_PKT_CYCLES=0
+
+// Modo RX: 0=RAND legal (size/offset siempre validos)
++RX_SIZE_MODE=0
+
+// Sin backpressure: TX siempre listo (foco en RX->TX)
++BP_MODE=0
+
+// Lectura activa de STATUS durante el trafico
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=10
+
+// Sin interrupciones para este test
++IRQEN=0
++IRQ_CLEAR=0

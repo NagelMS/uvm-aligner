@@ -7,8 +7,8 @@ TB_DIR  = ../tb
 
 
 
-SEED = 1
-
+SEED         = 1
+PLUSARGS_FILE =
 
 ifndef VCS_HOME
   ERR_STATUS = 1
@@ -20,7 +20,15 @@ COMP_OPTS = -sverilog -l vcs.log   \
             -ntb_opts uvm-1.2     \
             -debug_all
 
-RUN_OPTS = +ntb_random_seed=$(SEED) -l simv.log
+# Cargar plusargs desde archivo si PLUSARGS_FILE está definido
+ifneq ($(PLUSARGS_FILE),)
+  _PA_PATH      = $(TB_DIR)/test/plusargs/$(PLUSARGS_FILE)
+  _FILE_PLUSARGS = $(shell grep -E '^\+' $(_PA_PATH) 2>/dev/null | tr '\n' ' ')
+else
+  _FILE_PLUSARGS =
+endif
+
+RUN_OPTS = +ntb_random_seed=$(SEED) -l simv.log $(_FILE_PLUSARGS)
 
 
 
@@ -64,5 +72,7 @@ help:
 	@echo "*  make run       Run simulation only                     *"
 	@echo "*                                                          *"
 	@echo "*  Optional arguments:                                    *"
-	@echo "*  SEED=<val>     Random seed (default=1)                 *"
+	@echo "*  SEED=<val>           Random seed (default=1)           *"
+	@echo "*  PLUSARGS_FILE=<f>    File in tb/test/plusargs/ to load *"
+	@echo "*                       e.g. PLUSARGS_FILE=base_test.txt  *"
 	@echo "************************************************************"

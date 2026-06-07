@@ -1,0 +1,31 @@
+=======================================================
+Base Test - Ejecucion general aleatoria
+
+Using: aligner_base_test
+=======================================================
+
++UVM_TESTNAME=aligner_base_test
+
+// CTRL: 0 = el test randomiza entre {1,2,4} con offset legal
++CTRL_SIZE=0
+
+// Cantidad de paquetes
++NUM_PACKETS=50
+
+// Paquetes back-to-back
++INTER_PKT_CYCLES=0
+
+// Modo RX: 0=RAND legal
++RX_SIZE_MODE=0
+
+// Backpressure TX: 2=RANDOM (ready aleatorio cada ciclo)
+// Estressa distintos niveles del TX FIFO con cada seed.
++BP_MODE=2
+
+// Lectura activa de STATUS durante el trafico
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=3
+
+// Todas las interrupciones habilitadas; limpiar al final
++IRQEN=31
++IRQ_CLEAR=1

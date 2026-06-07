@@ -29,8 +29,12 @@
 // Environment top (depende de agente + adaptador + ALIGNER + scoreboard)
 ../tb/env/aligner_env.sv
 
+// Secuencias generales
+../tb/seq/aligner_main_seq.sv
+
 // Tests
 ../tb/test/apb_basic_test.sv
+../tb/test/aligner_base_test.sv
 
 // Top testbench
 ../tb/top/aligner_tb.sv

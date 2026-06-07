@@ -1,0 +1,296 @@
+///////////////////////////////////////////////////////////////////////////////
+// aligner_main_seq.sv
+//
+// Secuencia principal del cfs_aligner. Con sus knobs cubre la mayoría de
+// los casos del README ajustando parámetros desde el test (next: plusargs):
+//
+//   Flujo válido          rx_size_mode = RX_SIZE_RAND   (default)
+//   RX > CTRL size        rx_size_mode = RX_SIZE_GT_CTRL
+//   RX < CTRL size        rx_size_mode = RX_SIZE_LT_CTRL
+//   Cambio CTRL mid-test  ctrl_changes[] con uno o más entries
+//   Lectura activa STATUS poll_status_en = 1  (hilo concurrente)
+//   Paquete RX ilegal     rx_size_mode = RX_SIZE_ILLEGAL
+//   Saturación CNT_DROP   rx_size_mode = RX_SIZE_ILLEGAL + n_packets alto
+//   CTRL write ilegal     illegal_ctrl_write_en = 1  (via RAL; DUT responde slverr)
+//   CLR bit (CNT_DROP)    clear_fifo_cnt_en = 1
+//   FIFO RX/TX lleno      bp_mode = MD_TX_ALWAYS_STALL + n_packets alto
+//   IRQ W1C               irq_clear_en = 1 + irqen_val apropiado
+//   Deshabilitar IRQs     irqen_val = 5'h00  (default)
+//
+// NOTA: escritura a STATUS requiere bypass del RAL → secuencia específica.
+//
+// Se lanza sobre env.md_agt.sqr.
+// Operaciones RAL usan internamente el APB sequencer del default_map.
+///////////////////////////////////////////////////////////////////////////////
+
+// ── Modo de tamaño RX relativo al CTRL configurado ───────────────────────────
+typedef enum int {
+  RX_SIZE_RAND,        // aleatorio legal  (default)
+  RX_SIZE_MATCH_CTRL,  // rx_size == ctrl_size  (passthrough directo)
+  RX_SIZE_GT_CTRL,     // rx_size > ctrl_size   (fragmentación en TX)
+  RX_SIZE_LT_CTRL,     // rx_size < ctrl_size   (acumulación en TX)
+  RX_SIZE_ILLEGAL      // combos ilegales de size/offset en RX
+} rx_size_mode_e;
+
+// ── Cambio de CTRL programado en un paquete específico ───────────────────────
+typedef struct packed {
+  int unsigned at_pkt;  // índice del paquete ANTES del que se aplica el cambio
+  int unsigned size;
+  int unsigned offset;
+} ctrl_change_t;
+
+
+class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
+  `uvm_object_utils(aligner_main_seq)
+
+  // ── Handles (asignados por el test antes de start) ────────────────────────
+  ALIGNER            regmodel;  // modelo RAL
+  md_tx_driver #(32) tx_drv;   // control de backpressure en tiempo real
+
+  // ── Configuración inicial de registros ────────────────────────────────────
+  int unsigned ctrl_size        = 4;
+  int unsigned ctrl_offset      = 0;
+  bit [4:0]    irqen_val        = 5'h00;
+
+  // ── Tráfico RX ────────────────────────────────────────────────────────────
+  int unsigned   n_packets          = 4;
+  int unsigned   inter_pkt_cycles   = 0;
+  rx_size_mode_e rx_size_mode       = RX_SIZE_RAND;
+
+  // ── Cambios de CTRL durante la ejecución ─────────────────────────────────
+  // Agregar entries con push_back() desde el test antes de start().
+  // La secuencia los aplica justo antes del paquete indicado por at_pkt.
+  ctrl_change_t ctrl_changes[$];
+
+  // ── Control de backpressure TX (aplica a tx_drv antes del tráfico) ────────
+  md_tx_bp_mode_e bp_mode  = MD_TX_ALWAYS_READY;
+  int unsigned    bp_delay = 0;
+
+  // ── Monitoreo concurrente de STATUS ───────────────────────────────────────
+  bit          poll_status_en     = 0;
+  int unsigned poll_period_cycles = 5;
+
+  // ── Manejo de IRQ al final ────────────────────────────────────────────────
+  bit irq_clear_en = 0;
+
+  // ── Casos esquina via RAL ─────────────────────────────────────────────────
+  bit          illegal_ctrl_write_en = 0;  // escribe CTRL con combo ilegal → slverr
+  int unsigned illegal_ctrl_size     = 3;  // size=3 siempre ilegal
+  int unsigned illegal_ctrl_offset   = 0;
+  bit          clear_fifo_cnt_en     = 0;  // escribe CLR=1 en CTRL
+
+  function new(string name = "aligner_main_seq");
+    super.new(name);
+  endfunction
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Tareas de registros
+  // ══════════════════════════════════════════════════════════════════════════
+
+  task configure_ctrl(int unsigned size, int unsigned offset);
+    uvm_status_e   status;
+    uvm_reg_data_t val = (32'(offset) << 8) | 32'(size);
+    regmodel.CTRL.write(status, val);
+    if (status != UVM_IS_OK)
+      `uvm_error("SEQ",
+        $sformatf("CTRL write FAILED size=%0d off=%0d (slverr esperado?)", size, offset))
+    else
+      `uvm_info("SEQ",
+        $sformatf("CTRL <- 0x%08h  (size=%0d  offset=%0d)", val, size, offset), UVM_MEDIUM)
+  endtask
+
+  task configure_irqen();
+    uvm_status_e status;
+    regmodel.IRQEN.write(status, 32'(irqen_val));
+    if (status != UVM_IS_OK)
+      `uvm_error("SEQ", "IRQEN write FAILED")
+    else
+      `uvm_info("SEQ",
+        $sformatf("IRQEN <- 0x%02h  [RX_E=%0b RX_F=%0b TX_E=%0b TX_F=%0b DROP=%0b]",
+                  irqen_val,
+                  irqen_val[0], irqen_val[1], irqen_val[2],
+                  irqen_val[3], irqen_val[4]), UVM_MEDIUM)
+  endtask
+
+  task read_status();
+    uvm_status_e   status;
+    uvm_reg_data_t val;
+    regmodel.STATUS.read(status, val);
+    `uvm_info("SEQ",
+      $sformatf("STATUS: CNT_DROP=%0d  RX_LVL=%0d  TX_LVL=%0d",
+                val[7:0], val[11:8], val[19:16]), UVM_MEDIUM)
+  endtask
+
+  task handle_irq();
+    uvm_status_e   status;
+    uvm_reg_data_t irq_val;
+    regmodel.IRQ.read(status, irq_val);
+    `uvm_info("SEQ",
+      $sformatf("IRQ: 0x%08h  [RX_E=%0b RX_F=%0b TX_E=%0b TX_F=%0b DROP=%0b]",
+                irq_val,
+                irq_val[0], irq_val[1], irq_val[2],
+                irq_val[3], irq_val[4]), UVM_MEDIUM)
+    if (irq_val != '0) begin
+      regmodel.IRQ.write(status, irq_val);  // W1C: escribe 1 donde está activo
+      `uvm_info("SEQ", "IRQ flags cleared (W1C)", UVM_MEDIUM)
+    end
+  endtask
+
+  // CTRL write con combo ilegal (size o size/offset inválido).
+  // El DUT debe responder con slverr → status != UVM_IS_OK.
+  task do_illegal_ctrl_write();
+    uvm_status_e   status;
+    uvm_reg_data_t val = (32'(illegal_ctrl_offset) << 8) | 32'(illegal_ctrl_size);
+    `uvm_info("SEQ",
+      $sformatf("[ILLEGAL CTRL] Escribiendo size=%0d off=%0d (debe dar slverr)",
+                illegal_ctrl_size, illegal_ctrl_offset), UVM_LOW)
+    regmodel.CTRL.write(status, val);
+    if (status == UVM_IS_OK)
+      `uvm_warning("SEQ", "CTRL write ilegal NO generó slverr – revisar DUT")
+    else
+      `uvm_info("SEQ", "CTRL write ilegal rechazado correctamente (slverr)", UVM_LOW)
+  endtask
+
+  // Escribe CTRL con CLR=1 para limpiar el contador de drops.
+  task do_clear_fifo_cnt();
+    uvm_status_e   status;
+    uvm_reg_data_t val;
+    regmodel.CTRL.read(status, val);
+    val[16] = 1'b1;  // CLR bit
+    regmodel.CTRL.write(status, val);
+    `uvm_info("SEQ", "CTRL.CLR=1 → CNT_DROP limpiado", UVM_MEDIUM)
+  endtask
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Tarea de inyección de un paquete RX
+  // ══════════════════════════════════════════════════════════════════════════
+
+  task send_pkt(int unsigned idx);
+    md_seq_item #(32) tr;
+    bit ok;
+
+    tr = md_seq_item #(32)::type_id::create($sformatf("pkt%0d", idx));
+    start_item(tr);
+
+    case (rx_size_mode)
+
+      RX_SIZE_RAND:
+        ok = tr.randomize();  // constraints del item activos → siempre legal
+
+      RX_SIZE_MATCH_CTRL:
+        ok = tr.randomize() with { err == 1'b0; size == ctrl_size; };
+
+      RX_SIZE_GT_CTRL: begin
+        if (ctrl_size < 4)
+          ok = tr.randomize() with { err == 1'b0; size > ctrl_size; };
+        else begin
+          `uvm_warning("SEQ", "RX_SIZE_GT_CTRL: ctrl_size ya es máximo (4)")
+          ok = tr.randomize() with { err == 1'b0; size == 4; };
+        end
+      end
+
+      RX_SIZE_LT_CTRL: begin
+        if (ctrl_size > 1)
+          ok = tr.randomize() with { err == 1'b0; size < ctrl_size; size > 0; };
+        else begin
+          `uvm_warning("SEQ", "RX_SIZE_LT_CTRL: ctrl_size ya es mínimo (1)")
+          ok = tr.randomize() with { err == 1'b0; size == 1; };
+        end
+      end
+
+      RX_SIZE_ILLEGAL: begin
+        tr.c_legal_combo.constraint_mode(0);
+        tr.c_err_default.constraint_mode(0);
+        ok = tr.randomize() with { size > 1; };  // size=1 siempre legal; forzar size>=2
+        tr.c_legal_combo.constraint_mode(1);
+        tr.c_err_default.constraint_mode(1);
+      end
+
+      default:
+        ok = tr.randomize();
+    endcase
+
+    if (!ok)
+      `uvm_fatal("SEQ", $sformatf("randomize() falló en pkt%0d", idx))
+
+    finish_item(tr);
+    `uvm_info("SEQ",
+      $sformatf("[RX %0d/%0d] %s", idx+1, n_packets, tr.convert2string()), UVM_MEDIUM)
+  endtask
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Body: orquestación principal
+  // ══════════════════════════════════════════════════════════════════════════
+  task body();
+    bit traffic_done = 0;
+
+    `uvm_info("SEQ", $sformatf(
+      {"\n=== aligner_main_seq START ===\n",
+       "  CTRL   : size=%0d  offset=%0d\n",
+       "  IRQEN  : 0x%02h\n",
+       "  PKTs   : %0d  gap=%0d cyc  rx_mode=%s\n",
+       "  BP     : %s (delay=%0d)\n",
+       "  ctrl_changes=%0d  poll_status=%0b(%0d cyc)\n",
+       "  irq_clear=%0b  illegal_ctrl=%0b  clr_cnt=%0b"},
+      ctrl_size, ctrl_offset, irqen_val,
+      n_packets, inter_pkt_cycles, rx_size_mode.name(),
+      bp_mode.name(), bp_delay,
+      ctrl_changes.size(), poll_status_en, poll_period_cycles,
+      irq_clear_en, illegal_ctrl_write_en, clear_fifo_cnt_en), UVM_LOW)
+
+    // ── 1. Setup inicial ──────────────────────────────────────────────────
+    configure_ctrl(ctrl_size, ctrl_offset);
+    configure_irqen();
+
+    // ── 2. Opcional: write ilegal a CTRL (pre-tráfico) ────────────────────
+    if (illegal_ctrl_write_en)
+      do_illegal_ctrl_write();
+
+    // ── 3. Configurar backpressure TX ─────────────────────────────────────
+    if (tx_drv != null)
+      tx_drv.set_bp_mode(bp_mode, bp_delay);
+
+    // ── 4. Tráfico RX + monitoreo concurrente de STATUS ───────────────────
+    fork
+
+      // Hilo principal de tráfico
+      begin
+        for (int i = 0; i < n_packets; i++) begin
+          // Aplicar cambios de CTRL programados para este paquete
+          foreach (ctrl_changes[j]) begin
+            if (ctrl_changes[j].at_pkt == i)
+              configure_ctrl(ctrl_changes[j].size, ctrl_changes[j].offset);
+          end
+
+          if (i > 0 && inter_pkt_cycles > 0)
+            #(inter_pkt_cycles * 10);  // 10 ns / ciclo
+
+          send_pkt(i);
+        end
+        traffic_done = 1;
+      end
+
+      // Hilo de STATUS (termina cuando traffic_done se activa)
+      begin
+        while (!traffic_done) begin
+          if (poll_status_en)
+            read_status();
+          #(poll_period_cycles * 10);
+        end
+      end
+
+    join  // espera a ambos hilos
+
+    // ── 5. Post-tráfico ────────────────────────────────────────────────────
+    if (clear_fifo_cnt_en)
+      do_clear_fifo_cnt();
+
+    read_status();
+
+    if (irq_clear_en)
+      handle_irq();
+
+    `uvm_info("SEQ", "=== aligner_main_seq DONE ===", UVM_LOW)
+  endtask
+
+endclass

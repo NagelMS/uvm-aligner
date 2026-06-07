@@ -1,0 +1,165 @@
+///////////////////////////////////////////////////////////////////////////////
+// aligner_base_test.sv
+//
+// Test general del cfs_aligner. Instancia aligner_env y lanza
+// aligner_main_seq con los parámetros leídos desde plusargs en build_phase.
+//
+// Uso:
+//   ./simv +UVM_TESTNAME=aligner_base_test +UVM_VERBOSITY=UVM_MEDIUM \
+//          +CTRL_SIZE=4 +NUM_PACKETS=10 ...
+//
+// O via archivo de plusargs desde el Makefile:
+//   make run PLUSARGS_FILE=rx_legal_comb_test.txt SEED=42
+///////////////////////////////////////////////////////////////////////////////
+class aligner_base_test extends uvm_test;
+  `uvm_component_utils(aligner_base_test)
+
+  aligner_env env;
+
+  // ── Knobs (defaults; sobreescritos por plusargs en build_phase) ───────────
+  // CTRL_SIZE=0 → ctrl_size aleatorio entre {1,2,4} en run_phase
+  int unsigned ctrl_size          = 4;
+  int unsigned ctrl_offset        = 0;
+  int unsigned irqen_val_i        = 0;
+
+  int unsigned n_packets          = 4;
+  int unsigned inter_pkt_cycles   = 0;
+  int          rx_size_mode_i     = 0;   // cast a rx_size_mode_e en run_phase
+
+  int          bp_mode_i          = 0;   // cast a md_tx_bp_mode_e en run_phase
+  int unsigned bp_delay           = 0;
+
+  bit          poll_status_en     = 0;
+  int unsigned poll_period_cycles = 5;
+
+  bit          irq_clear_en       = 0;
+  bit          illegal_ctrl_en    = 0;
+  int unsigned illegal_ctrl_size  = 3;
+  int unsigned illegal_ctrl_off   = 0;
+  bit          clear_fifo_cnt_en  = 0;
+
+  // Cambio de CTRL a mitad de ejecución (un solo punto de cambio via plusargs)
+  bit          ctrl_mid_en        = 0;
+  int unsigned ctrl_mid_at_pkt    = 0;
+  int unsigned ctrl_mid_size      = 4;
+  int unsigned ctrl_mid_offset    = 0;
+
+  function new(string name = "aligner_base_test", uvm_component parent = null);
+    super.new(name, parent);
+  endfunction
+
+  // ── Build phase: crear env y leer plusargs ────────────────────────────────
+  function void build_phase(uvm_phase phase);
+    int tmp;
+    super.build_phase(phase);
+    env = aligner_env::type_id::create("env", this);
+
+    // Registro de control
+    if ($value$plusargs("CTRL_SIZE=%d",          tmp)) ctrl_size          = tmp;
+    if ($value$plusargs("CTRL_OFFSET=%d",        tmp)) ctrl_offset        = tmp;
+    if ($value$plusargs("IRQEN=%d",              tmp)) irqen_val_i        = tmp;
+
+    // Tráfico RX
+    if ($value$plusargs("NUM_PACKETS=%d",        tmp)) n_packets          = tmp;
+    if ($value$plusargs("INTER_PKT_CYCLES=%d",   tmp)) inter_pkt_cycles   = tmp;
+    if ($value$plusargs("RX_SIZE_MODE=%d",       tmp)) rx_size_mode_i     = tmp;
+
+    // Backpressure TX
+    if ($value$plusargs("BP_MODE=%d",            tmp)) bp_mode_i          = tmp;
+    if ($value$plusargs("BP_DELAY=%d",           tmp)) bp_delay           = tmp;
+
+    // Monitoreo de STATUS
+    if ($value$plusargs("POLL_STATUS=%d",        tmp)) poll_status_en     = bit'(tmp);
+    if ($value$plusargs("POLL_PERIOD_CYCLES=%d", tmp)) poll_period_cycles = tmp;
+
+    // Casos esquina
+    if ($value$plusargs("IRQ_CLEAR=%d",          tmp)) irq_clear_en       = bit'(tmp);
+    if ($value$plusargs("ILLEGAL_CTRL=%d",       tmp)) illegal_ctrl_en    = bit'(tmp);
+    if ($value$plusargs("ILLEGAL_CTRL_SIZE=%d",  tmp)) illegal_ctrl_size  = tmp;
+    if ($value$plusargs("ILLEGAL_CTRL_OFFSET=%d",tmp)) illegal_ctrl_off   = tmp;
+    if ($value$plusargs("CLEAR_FIFO_CNT=%d",     tmp)) clear_fifo_cnt_en  = bit'(tmp);
+
+    // Cambio de CTRL a mitad de ejecución
+    if ($value$plusargs("CTRL_MID_EN=%d",        tmp)) ctrl_mid_en        = bit'(tmp);
+    if ($value$plusargs("CTRL_MID_AT_PKT=%d",    tmp)) ctrl_mid_at_pkt    = tmp;
+    if ($value$plusargs("CTRL_MID_SIZE=%d",      tmp)) ctrl_mid_size      = tmp;
+    if ($value$plusargs("CTRL_MID_OFFSET=%d",    tmp)) ctrl_mid_offset    = tmp;
+
+    `uvm_info("TEST", $sformatf(
+      {"\n=== aligner_base_test plusargs leídos ===\n",
+       "  CTRL_SIZE=%0d  CTRL_OFFSET=%0d  IRQEN=0x%02h\n",
+       "  NUM_PACKETS=%0d  INTER_PKT_CYCLES=%0d  RX_SIZE_MODE=%0d\n",
+       "  BP_MODE=%0d  BP_DELAY=%0d\n",
+       "  POLL_STATUS=%0b  POLL_PERIOD_CYCLES=%0d\n",
+       "  IRQ_CLEAR=%0b  ILLEGAL_CTRL=%0b  CLEAR_FIFO_CNT=%0b\n",
+       "  CTRL_MID_EN=%0b  at_pkt=%0d  size=%0d  offset=%0d"},
+      ctrl_size, ctrl_offset, irqen_val_i,
+      n_packets, inter_pkt_cycles, rx_size_mode_i,
+      bp_mode_i, bp_delay,
+      poll_status_en, poll_period_cycles,
+      irq_clear_en, illegal_ctrl_en, clear_fifo_cnt_en,
+      ctrl_mid_en, ctrl_mid_at_pkt, ctrl_mid_size, ctrl_mid_offset),
+      UVM_MEDIUM)
+  endfunction
+
+  // ── Run phase: configurar y lanzar la secuencia ───────────────────────────
+  task run_phase(uvm_phase phase);
+    aligner_main_seq seq;
+    phase.raise_objection(this);
+    phase.phase_done.set_drain_time(this, 2000);  // 2 µs = 200 ciclos de margen
+
+    // CTRL_SIZE=0 → elegir tamaño legal al azar y offset alineado
+    if (ctrl_size == 0) begin
+      int unsigned legal_sizes[3] = '{1, 2, 4};
+      int unsigned pick;
+      void'(std::randomize(pick) with { pick inside {[0:2]}; });
+      ctrl_size = legal_sizes[pick];
+      case (ctrl_size)
+        1: void'(std::randomize(ctrl_offset) with { ctrl_offset inside {[0:3]}; });
+        2: void'(std::randomize(ctrl_offset) with { ctrl_offset inside {0, 2}; });
+        4: ctrl_offset = 0;
+      endcase
+      `uvm_info("TEST",
+        $sformatf("CTRL_SIZE=0 → randomized size=%0d offset=%0d", ctrl_size, ctrl_offset),
+        UVM_MEDIUM)
+    end
+
+    seq = aligner_main_seq::type_id::create("seq");
+
+    seq.regmodel = env.regmodel;
+    seq.tx_drv   = env.md_agt.tx_drv;
+
+    seq.ctrl_size   = ctrl_size;
+    seq.ctrl_offset = ctrl_offset;
+    seq.irqen_val   = bit [4:0]'(irqen_val_i);
+
+    seq.n_packets        = n_packets;
+    seq.inter_pkt_cycles = inter_pkt_cycles;
+    seq.rx_size_mode     = rx_size_mode_e'(rx_size_mode_i);
+
+    seq.bp_mode  = md_tx_bp_mode_e'(bp_mode_i);
+    seq.bp_delay = bp_delay;
+
+    seq.poll_status_en     = poll_status_en;
+    seq.poll_period_cycles = poll_period_cycles;
+    seq.irq_clear_en       = irq_clear_en;
+
+    seq.illegal_ctrl_write_en = illegal_ctrl_en;
+    seq.illegal_ctrl_size     = illegal_ctrl_size;
+    seq.illegal_ctrl_offset   = illegal_ctrl_off;
+    seq.clear_fifo_cnt_en     = clear_fifo_cnt_en;
+
+    // Poblar ctrl_changes si se pidió un cambio de CTRL a mitad de ejecución
+    if (ctrl_mid_en) begin
+      ctrl_change_t ch;
+      ch.at_pkt = ctrl_mid_at_pkt;
+      ch.size   = ctrl_mid_size;
+      ch.offset = ctrl_mid_offset;
+      seq.ctrl_changes.push_back(ch);
+    end
+
+    seq.start(env.md_agt.sqr);
+    phase.drop_objection(this);
+  endtask
+
+endclass
