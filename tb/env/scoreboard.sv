@@ -54,17 +54,15 @@ class scoreboard #(
     else            check_apb_read (item, apb_addr);
   endfunction
 
-  // Drena m_rx_byte_q con la config actual antes de un cambio de CTRL.
-  // Genera los TX esperados completos pendientes y descarta bytes residuales
-  // que no alcanzan a formar un paquete con la config antigua.
+  // Drena paquetes completos pendientes con la config actual antes del cambio.
+  // Los bytes residuales se preservan: el DUT mantiene su buffer interno
+  // y los reusa bajo la nueva configuración de CTRL.
   function void flush_on_ctrl_change();
     generate_expected_tx();
-    if (m_rx_byte_q.size() > 0) begin
+    if (m_rx_byte_q.size() > 0)
       `uvm_info("SCB",
-        $sformatf("CTRL change: %0d bytes residuales (config size=%0d) descartados",
-                  m_rx_byte_q.size(), size_config), UVM_MEDIUM)
-      m_rx_byte_q.delete();
-    end
+        $sformatf("CTRL change: %0d bytes residuales pasan a nueva config",
+                  m_rx_byte_q.size()), UVM_MEDIUM)
   endfunction
 
   function void check_apb_write(apb_seq_item item, logic [15:0] addr);
@@ -78,6 +76,7 @@ class scoreboard #(
             flush_on_ctrl_change();
             size_config   = int'(new_size);
             offset_config = int'(new_offset);
+            generate_expected_tx();
           end
           3'd2: begin
             if (new_offset == 2'd0 || new_offset == 2'd2) begin
@@ -85,6 +84,7 @@ class scoreboard #(
               flush_on_ctrl_change();
               size_config   = int'(new_size);
               offset_config = int'(new_offset);
+              generate_expected_tx();
             end else
               check_pslverr(item, 1'b1, "Combinacion size=2 y offset invalidos");
           end
@@ -94,6 +94,7 @@ class scoreboard #(
               flush_on_ctrl_change();
               size_config   = int'(new_size);
               offset_config = int'(new_offset);
+              generate_expected_tx();
             end else
               check_pslverr(item, 1'b1, "Combinacion size=4 y offset invalidos");
           end
