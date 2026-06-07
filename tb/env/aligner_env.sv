@@ -32,8 +32,8 @@ class aligner_env extends uvm_env;
       this, "apb_agt", "is_active", UVM_ACTIVE);
     apb_agt = apb_agent::type_id::create("apb_agt", this);
 
-    // Modelo de registros RAL
-    regmodel = ALIGNER::type_id::create("regmodel", this);
+    // Modelo de registros RAL (sin factory: PeakRDL no genera uvm_object_utils)
+    regmodel = new("regmodel");
     regmodel.build();
     regmodel.lock_model();
 
