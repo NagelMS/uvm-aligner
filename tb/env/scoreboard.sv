@@ -54,26 +54,15 @@ class scoreboard #(
     else            check_apb_read (item, apb_addr);
   endfunction
 
-  // Maneja la transición de CTRL según el comportamiento observado del DUT:
-  //   - Config cambia (size o offset distinto): el DUT resetea su buffer →
-  //     descartar bytes residuales del scoreboard.
-  //   - Config se reescribe con el mismo valor: el DUT preserva su buffer →
-  //     mantener bytes residuales para que formen paquetes bajo la misma config.
+  // La secuencia drena el DUT (wait_for_drain) antes de cambiar CTRL,
+  // por lo que m_rx_byte_q debe estar vacía en este punto.
+  // Se genera un warning si hay bytes residuales inesperados.
   function void flush_on_ctrl_change(int new_size, int new_offset);
-    generate_expected_tx();  // drenar paquetes completos con config actual
-    if (new_size != size_config || new_offset != offset_config) begin
-      if (m_rx_byte_q.size() > 0) begin
-        `uvm_info("SCB",
-          $sformatf("CTRL change %0d→%0d: %0d bytes residuales descartados (DUT resetea buffer)",
-                    size_config, new_size, m_rx_byte_q.size()), UVM_MEDIUM)
-        m_rx_byte_q.delete();
-      end
-    end else begin
-      if (m_rx_byte_q.size() > 0)
-        `uvm_info("SCB",
-          $sformatf("CTRL reescrito (mismo valor size=%0d): %0d bytes residuales preservados",
-                    size_config, m_rx_byte_q.size()), UVM_MEDIUM)
-    end
+    generate_expected_tx();
+    if (m_rx_byte_q.size() > 0)
+      `uvm_warning("SCB",
+        $sformatf("CTRL change %0d→%0d: %0d bytes residuales inesperados (DUT no drenó?)",
+                  size_config, new_size, m_rx_byte_q.size()))
   endfunction
 
   function void check_apb_write(apb_seq_item item, logic [15:0] addr);

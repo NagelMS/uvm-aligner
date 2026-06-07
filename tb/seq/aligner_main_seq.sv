@@ -147,6 +147,17 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       `uvm_info("SEQ", "CTRL write ilegal rechazado correctamente (slverr)", UVM_LOW)
   endtask
 
+  // Espera a que el DUT drene sus FIFOs antes de cambiar CTRL.
+  // Garantiza que no queden bytes en tránsito al momento del cambio.
+  task wait_for_drain();
+    uvm_status_e   status;
+    uvm_reg_data_t val;
+    do begin
+      regmodel.STATUS.read(status, val);
+    end while (val[11:8] != 0 || val[19:16] != 0);  // RX_LVL==0 && TX_LVL==0
+    `uvm_info("SEQ", "DUT drenado: RX_LVL=0 TX_LVL=0", UVM_MEDIUM)
+  endtask
+
   task do_clear_fifo_cnt();
     uvm_status_e   status;
     uvm_reg_data_t val;
@@ -258,6 +269,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
           // Cambio de CTRL en los puntos calculados
           if (ctrl_change_interval > 0 &&
               i > 0 && (i % ctrl_change_interval) == 0) begin
+            wait_for_drain();  // asegura FIFOs vacíos antes de cambiar config
             if (!this.randomize(rnd_ctrl_size, rnd_ctrl_offset))
               `uvm_fatal("SEQ", "Fallo al randomizar combo de CTRL")
             ctrl_size   = rnd_ctrl_size;
