@@ -248,7 +248,7 @@ class scoreboard #(
 
     `uvm_info("SCB",
       $sformatf("TX correcto: data=0x%08h offset=%0d size=%0d",
-                item.data, item.offset, item.size), UVM_HIGH)
+                item.data, item.offset, item.size), UVM_MEDIUM)
   endfunction
 
   // ── Reporte final ─────────────────────────────────────────────────────────
