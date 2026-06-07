@@ -54,15 +54,26 @@ class scoreboard #(
     else            check_apb_read (item, apb_addr);
   endfunction
 
-  // Drena paquetes completos pendientes con la config actual antes del cambio.
-  // Los bytes residuales se preservan: el DUT mantiene su buffer interno
-  // y los reusa bajo la nueva configuración de CTRL.
-  function void flush_on_ctrl_change();
-    generate_expected_tx();
-    if (m_rx_byte_q.size() > 0)
-      `uvm_info("SCB",
-        $sformatf("CTRL change: %0d bytes residuales pasan a nueva config",
-                  m_rx_byte_q.size()), UVM_MEDIUM)
+  // Maneja la transición de CTRL según el comportamiento observado del DUT:
+  //   - Config cambia (size o offset distinto): el DUT resetea su buffer →
+  //     descartar bytes residuales del scoreboard.
+  //   - Config se reescribe con el mismo valor: el DUT preserva su buffer →
+  //     mantener bytes residuales para que formen paquetes bajo la misma config.
+  function void flush_on_ctrl_change(int new_size, int new_offset);
+    generate_expected_tx();  // drenar paquetes completos con config actual
+    if (new_size != size_config || new_offset != offset_config) begin
+      if (m_rx_byte_q.size() > 0) begin
+        `uvm_info("SCB",
+          $sformatf("CTRL change %0d→%0d: %0d bytes residuales descartados (DUT resetea buffer)",
+                    size_config, new_size, m_rx_byte_q.size()), UVM_MEDIUM)
+        m_rx_byte_q.delete();
+      end
+    end else begin
+      if (m_rx_byte_q.size() > 0)
+        `uvm_info("SCB",
+          $sformatf("CTRL reescrito (mismo valor size=%0d): %0d bytes residuales preservados",
+                    size_config, m_rx_byte_q.size()), UVM_MEDIUM)
+    end
   endfunction
 
   function void check_apb_write(apb_seq_item item, logic [15:0] addr);
@@ -73,7 +84,7 @@ class scoreboard #(
         case (new_size)
           3'd1: begin
             check_pslverr(item, 1'b0, "Combinacion size=1 valida");
-            flush_on_ctrl_change();
+            flush_on_ctrl_change(1, int'(new_offset));
             size_config   = int'(new_size);
             offset_config = int'(new_offset);
             generate_expected_tx();
@@ -81,7 +92,7 @@ class scoreboard #(
           3'd2: begin
             if (new_offset == 2'd0 || new_offset == 2'd2) begin
               check_pslverr(item, 1'b0, "Combinacion size=2 y offset validos");
-              flush_on_ctrl_change();
+              flush_on_ctrl_change(2, int'(new_offset));
               size_config   = int'(new_size);
               offset_config = int'(new_offset);
               generate_expected_tx();
@@ -91,7 +102,7 @@ class scoreboard #(
           3'd4: begin
             if (new_offset == 2'd0) begin
               check_pslverr(item, 1'b0, "Combinacion size=4 y offset=0 validos");
-              flush_on_ctrl_change();
+              flush_on_ctrl_change(4, int'(new_offset));
               size_config   = int'(new_size);
               offset_config = int'(new_offset);
               generate_expected_tx();
