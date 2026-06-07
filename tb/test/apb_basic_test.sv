@@ -32,6 +32,29 @@ class apb_reg_seq extends uvm_sequence #(apb_seq_item);
 endclass
 
 
+class md_passthrough_seq extends uvm_sequence #(md_seq_item #(32));
+  `uvm_object_utils(md_passthrough_seq)
+
+  function new(string name = "md_passthrough_seq");
+    super.new(name);
+  endfunction
+
+  task body();
+    md_seq_item #(32) tr;
+
+    `uvm_info("SEQ", "\n=== Test 3: RX→TX passthrough (0xDEADBEEF, size=4) ===", UVM_LOW)
+    tr = md_seq_item #(32)::type_id::create("tr");
+    start_item(tr);
+    tr.data   = 32'hDEAD_BEEF;
+    tr.size   = 3'd4;
+    tr.offset = 2'd0;
+    tr.err    = 1'b0;
+    finish_item(tr);
+  endtask
+
+endclass
+
+
 class apb_basic_test extends uvm_test;
   `uvm_component_utils(apb_basic_test)
 
@@ -47,14 +70,20 @@ class apb_basic_test extends uvm_test;
   endfunction
 
   task run_phase(uvm_phase phase);
-    apb_reg_seq seq;
+    apb_reg_seq        apb_seq;
+    md_passthrough_seq md_seq;
     phase.raise_objection(this);
 
-    seq          = apb_reg_seq::type_id::create("seq");
-    seq.regmodel = env.regmodel;
-    seq.start(env.apb_agt.sqr);
+    // Tests 1 y 2: configuración de registros via RAL
+    apb_seq          = apb_reg_seq::type_id::create("apb_seq");
+    apb_seq.regmodel = env.regmodel;
+    apb_seq.start(env.apb_agt.sqr);
 
-    // Dar tiempo al Test 3 (flujo MD manual en el TB) para que complete
+    // Test 3: flujo MD RX→TX; el scoreboard verifica el TX automáticamente
+    md_seq = md_passthrough_seq::type_id::create("md_seq");
+    md_seq.start(env.md_agt.sqr);
+
+    // Margen para que el TX llegue y el scoreboard lo procese
     #500;
 
     phase.drop_objection(this);

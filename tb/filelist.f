@@ -23,7 +23,10 @@
 ../tb/env/md_monitor.sv
 ../tb/env/md_agent.sv
 
-// Environment top (depende de agente + adaptador + ALIGNER)
+// Scoreboard (depende de apb_seq_item, md_seq_item y ALIGNER)
+../tb/env/scoreboard.sv
+
+// Environment top (depende de agente + adaptador + ALIGNER + scoreboard)
 ../tb/env/aligner_env.sv
 
 // Tests

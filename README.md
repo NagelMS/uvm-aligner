@@ -45,7 +45,7 @@ Los siguientes puntos son aleatorizables:
 - FIFO de Tx lleno
 - Generar w1c en IRQ de FIFO vacía
 - Deshabilitar todos los campos de habilitación de interrupciones
-- Multiples reset
+
 
 
 ---

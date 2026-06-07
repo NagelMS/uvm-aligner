@@ -46,47 +46,12 @@ module aligner_tb;
   initial clk = 1'b0;
   always  #5 clk = ~clk;
 
+  // Reset: 5 ciclos en bajo; los agentes MD toman control de rx/tx desde sus drivers
   initial begin
     apb.reset_n = 1'b0;
-    rx.valid    = 1'b0;
-    rx.data     = '0;
-    rx.offset   = '0;
-    rx.size     = '0;
-    tx.ready    = 1'b1;
-    tx.err      = 1'b0;
     repeat(5) @(posedge clk);
     apb.reset_n = 1'b1;
     `uvm_info("TB", "Reset released.", UVM_LOW)
-  end
-
-  initial begin
-    #400;
-    `uvm_info("TB", "\n=== Test 3: RX packet flow through aligner ===", UVM_LOW)
-    fork
-      begin
-        @(posedge clk);
-        rx.valid  <= 1'b1;
-        rx.data   <= 32'hDEAD_BEEF;
-        rx.offset <= '0;
-        rx.size   <= 3'd4;
-        do @(posedge clk); while (!rx.ready);
-        `uvm_info("TB", $sformatf("[RX] Handshake: data=0x%08h size=%0d offset=%0d err=%0b",
-                                   rx.data, rx.size, rx.offset, rx.err), UVM_LOW)
-        @(posedge clk);
-        rx.valid <= 1'b0;
-      end
-      begin
-        @(posedge tx.valid);
-        if (tx.data   === 32'hDEAD_BEEF &&
-            tx.size   === 3'd4           &&
-            tx.offset === '0)
-          `uvm_info("TB",  $sformatf("PASS T3: TX data=0x%08h size=%0d offset=%0d",
-                                      tx.data, tx.size, tx.offset), UVM_LOW)
-        else
-          `uvm_error("TB", $sformatf("FAIL T3: TX mismatch. data=0x%08h size=%0d offset=%0d",
-                                      tx.data, tx.size, tx.offset))
-      end
-    join
   end
 
   initial begin
