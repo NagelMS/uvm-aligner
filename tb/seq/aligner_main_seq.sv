@@ -147,8 +147,9 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       `uvm_info("SEQ", "CTRL write ilegal rechazado correctamente (slverr)", UVM_LOW)
   endtask
 
-  // Espera a que el DUT drene sus FIFOs antes de cambiar CTRL.
-  // Garantiza que no queden bytes en tránsito al momento del cambio.
+  // STATUS.RX_LVL sólo refleja el nivel del RX FIFO, no el buffer interno de
+  // cfs_ctrl (aligned_bytes_processed). wait_for_drain garantiza que RX y TX
+  // FIFOs estén vacíos; flush_ctrl_buffer garantiza que cfs_ctrl también lo esté.
   task wait_for_drain();
     uvm_status_e   status;
     uvm_reg_data_t val;
@@ -156,6 +157,24 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       regmodel.STATUS.read(status, val);
     end while (val[11:8] != 0 || val[19:16] != 0);  // RX_LVL==0 && TX_LVL==0
     `uvm_info("SEQ", "DUT drenado: RX_LVL=0 TX_LVL=0", UVM_MEDIUM)
+  endtask
+
+  // Envía paquetes de size=1 hasta completar el word actual del buffer interno
+  // de cfs_ctrl (aligned_bytes_processed). Debe llamarse ANTES de wait_for_drain
+  // y de cualquier cambio de CTRL para garantizar que cfs_ctrl.aligned_bytes_processed==0.
+  task send_fill_pkts(int unsigned n_bytes);
+    for (int unsigned b = 0; b < n_bytes; b++) begin
+      md_seq_item #(32) tr;
+      tr = md_seq_item #(32)::type_id::create("fill_pkt");
+      start_item(tr);
+      if (!tr.randomize() with { err == 1'b0; size == 1; })
+        `uvm_fatal("SEQ", "randomize fill_pkt failed")
+      finish_item(tr);
+    end
+    if (n_bytes > 0)
+      `uvm_info("SEQ",
+        $sformatf("[FILL] %0d byte(s) de relleno enviados para completar word de ctrl_size=%0d",
+                  n_bytes, ctrl_size), UVM_MEDIUM)
   endtask
 
   task do_clear_fifo_cnt();
@@ -171,7 +190,8 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
   // Tarea de inyección de un paquete RX
   // ══════════════════════════════════════════════════════════════════════════
 
-  task send_pkt(int unsigned idx);
+  // pkt_size: bytes aceptados por el DUT (0 si paquete ilegal = dropped).
+  task send_pkt(int unsigned idx, output int unsigned pkt_size);
     md_seq_item #(32) tr;
     bit ok;
 
@@ -219,6 +239,8 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       `uvm_fatal("SEQ", $sformatf("randomize() falló en pkt%0d", idx))
 
     finish_item(tr);
+    // Paquetes ilegales son descartados por el DUT → no acumulan bytes en cfs_ctrl
+    pkt_size = (rx_size_mode == RX_SIZE_ILLEGAL) ? 0 : int'(tr.size);
     `uvm_info("SEQ",
       $sformatf("[RX %0d/%0d] %s", idx+1, n_packets, tr.convert2string()), UVM_MEDIUM)
   endtask
@@ -229,6 +251,11 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
   task body();
     bit          traffic_done = 0;
     int unsigned ctrl_change_interval;
+    // Rastrea cuántos bytes parciales hay en el buffer interno de cfs_ctrl
+    // (aligned_bytes_processed). Permite calcular el relleno necesario antes
+    // de un CTRL change para garantizar que aligned_bytes_processed == 0.
+    int unsigned pending_bytes = 0;
+    int unsigned actual_pkt_size;
 
     `uvm_info("SEQ", $sformatf(
       {"\n=== aligner_main_seq START ===\n",
@@ -269,18 +296,27 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
           // Cambio de CTRL en los puntos calculados
           if (ctrl_change_interval > 0 &&
               i > 0 && (i % ctrl_change_interval) == 0) begin
-            wait_for_drain();  // asegura FIFOs vacíos antes de cambiar config
+            // Completar el word parcial en cfs_ctrl.aligned_bytes_processed.
+            // STATUS.RX_LVL no refleja ese buffer interno, por lo que hay que
+            // garantizarlo explícitamente con paquetes de relleno de size=1.
+            if (pending_bytes > 0)
+              send_fill_pkts(ctrl_size - pending_bytes);
+            wait_for_drain();
             if (!this.randomize(rnd_ctrl_size, rnd_ctrl_offset))
               `uvm_fatal("SEQ", "Fallo al randomizar combo de CTRL")
-            ctrl_size   = rnd_ctrl_size;
-            ctrl_offset = rnd_ctrl_offset;
+            ctrl_size     = rnd_ctrl_size;
+            ctrl_offset   = rnd_ctrl_offset;
+            pending_bytes = 0;  // nueva configuración: buffer interno en 0
             configure_ctrl(ctrl_size, ctrl_offset);
           end
 
           if (i > 0 && inter_pkt_cycles > 0)
             #(inter_pkt_cycles * 10);
 
-          send_pkt(i);
+          send_pkt(i, actual_pkt_size);
+          pending_bytes = (ctrl_size > 0)
+                          ? (pending_bytes + actual_pkt_size) % ctrl_size
+                          : 0;
         end
         traffic_done = 1;
       end
