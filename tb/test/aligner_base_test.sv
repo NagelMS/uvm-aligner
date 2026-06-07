@@ -131,7 +131,7 @@ class aligner_base_test extends uvm_test;
 
     seq.ctrl_size   = ctrl_size;
     seq.ctrl_offset = ctrl_offset;
-    seq.irqen_val   = bit [4:0]'(irqen_val_i);
+    seq.irqen_val   = irqen_val_i[4:0];
 
     seq.n_packets        = n_packets;
     seq.inter_pkt_cycles = inter_pkt_cycles;
