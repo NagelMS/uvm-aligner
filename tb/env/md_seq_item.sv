@@ -16,7 +16,7 @@ class md_seq_item #(
     `uvm_field_int(size,    UVM_ALL_ON)
     `uvm_field_int(err,     UVM_ALL_ON)
     `uvm_field_int(got_err, UVM_ALL_ON)
-  `uvm_object_param_utils_end
+  `uvm_object_utils_end
 
   rand logic [ALGN_DATA_WIDTH-1:0]   data;
 
