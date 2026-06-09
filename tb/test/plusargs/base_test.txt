@@ -10,8 +10,8 @@ Using: aligner_base_test
 +CTRL_SIZE=0
 
 // Cantidad de paquetes
-+NUM_PACKETS=50
-+NUM_CTRL_CHANGES=0
++NUM_PACKETS=50000
++NUM_CTRL_CHANGES=100
 
 // Paquetes back-to-back
 +INTER_PKT_CYCLES=0
@@ -20,7 +20,7 @@ Using: aligner_base_test
 +RX_SIZE_MODE=0
 
 // Backpressure TX: 2=RANDOM (ready aleatorio cada ciclo)
-// Estressa distintos niveles del TX FIFO con cada seed.
+// Estresa distintos niveles del TX FIFO con cada seed.
 +BP_MODE=2
 
 // Lectura activa de STATUS durante el trafico

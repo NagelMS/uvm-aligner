@@ -1,0 +1,36 @@
+=======================================================
+Fill TX FIFO Test
+
+Corner case: "FIFO de TX completamente lleno"
+
+IRQEN[3]=TX_FIFO_FULL activo: se debe disparar irq cuando el TX FIFO
+alcanza capacidad máxima.
+
+Using: aligner_base_test
+=======================================================
+
++UVM_TESTNAME=aligner_base_test
+
+// CTRL: size=4 bytes, offset=0 (único offset legal para size=4)
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+// 8 paquetes back-to-back = 8 entradas TX → TX FIFO lleno (depth=8)
++NUM_PACKETS=8
++NUM_CTRL_CHANGES=0
++INTER_PKT_CYCLES=0
+
+// Modo RX: 1=MATCH_CTRL → cada pkt RX tiene size==CTRL.SIZE (mapeo 1:1)
++RX_SIZE_MODE=1
+
+// Backpressure TX: 1=ALWAYS_STALL → TX nunca consume, TX FIFO se llena
++BP_MODE=1
++BP_DELAY=0
+
+// Lectura activa de STATUS para observar TX_LVL subiendo hasta 8
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=2
+
+// IRQEN: solo TX_FIFO_FULL habilitada (bit[3] = 0x08 = 8)
++IRQEN=8
++IRQ_CLEAR=1

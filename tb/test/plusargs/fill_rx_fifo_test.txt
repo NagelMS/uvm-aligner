@@ -1,0 +1,36 @@
+=======================================================
+Fill RX FIFO Test
+
+Corner case: "FIFO de RX completamente lleno"
+
+IRQEN[1]=RX_FIFO_FULL e IRQEN[3]=TX_FIFO_FULL activos: se deben
+disparar ambas interrupciones durante la ejecución.
+
+Using: aligner_base_test
+=======================================================
+
++UVM_TESTNAME=aligner_base_test
+
+// CTRL: size=4 bytes, offset=0 (único offset legal para size=4)
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+// 20 paquetes back-to-back: 8 llenan TX FIFO, 8 llenan RX FIFO, 4 de margen
++NUM_PACKETS=20
++NUM_CTRL_CHANGES=0
++INTER_PKT_CYCLES=0
+
+// Modo RX: 1=MATCH_CTRL → cada pkt RX tiene size==CTRL.SIZE (mapeo 1:1)
++RX_SIZE_MODE=1
+
+// Backpressure TX: 1=ALWAYS_STALL → TX nunca consume
++BP_MODE=1
++BP_DELAY=0
+
+// Lectura activa de STATUS para observar RX_LVL y TX_LVL subiendo
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=2
+
+// IRQEN: RX_FIFO_FULL(bit[1]=0x02) + TX_FIFO_FULL(bit[3]=0x08) = 0x0A = 10
++IRQEN=10
++IRQ_CLEAR=1
