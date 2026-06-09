@@ -15,8 +15,8 @@ Using: aligner_base_test
 +CTRL_SIZE=4
 +CTRL_OFFSET=0
 
-// 20 paquetes back-to-back: 8 llenan TX FIFO, 8 llenan RX FIFO, 4 de margen
-+NUM_PACKETS=20
+// 18 paquetes back-to-back: 10 llenan TX FIFO, los siguientes 8 llenan RX FIFO.
++NUM_PACKETS=18
 +NUM_CTRL_CHANGES=0
 +INTER_PKT_CYCLES=0
 
