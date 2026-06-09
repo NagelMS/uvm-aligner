@@ -36,5 +36,8 @@
 ../tb/test/apb_basic_test.sv
 ../tb/test/aligner_base_test.sv
 
+// Cobertura funcional (bind al DUT al final del archivo)
+../tb/cov/aligner_cov.sv
+
 // Top testbench
 ../tb/top/aligner_tb.sv
