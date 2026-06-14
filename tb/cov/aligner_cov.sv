@@ -1,4 +1,4 @@
-/module aligner_cov #(
+module aligner_cov #(
   parameter int ALGN_DATA_WIDTH = 32,
   parameter int FIFO_DEPTH      = 8
 )(
@@ -256,7 +256,8 @@
 
   // CP-4: Cambio de CTRL mientras hay un paquete RX en vuelo (corner case)
   property p_ctrl_change_mid_traffic;
-    @(posedge clk) s_ctrl_wr_done && md_rx_valid;
+    @(posedge clk) 
+    (psel && penable && pready && !pslverr && pwrite && ({paddr[15:2], 2'b00} == 16'h0000)) && md_rx_valid;
   endproperty
   cov_ctrl_change_mid_traffic: cover property (p_ctrl_change_mid_traffic);
 
