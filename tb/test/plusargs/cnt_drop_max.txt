@@ -1,0 +1,30 @@
+#=====================================================================
+#Caso: Saturación de CNT_DROP al máximo y clear via CTRL.CLR
+# Objetivo: enviar suficientes paquetes ilegales para llevar
+# STATUS.CNT_DROP a su valor máximo (255 = 0xFF, campo de 8 bits),
+# verificar que NO hace wrap, y luego resetearlo con CTRL.CLR=1.
+#====================================================================
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+# Configuración legal del alineador como referencia.
+# SIZE=4, OFFSET=0 cumple: (4+0)%4==0
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+# Modo RX: 4 = RX_SIZE_ILLEGAL
++RX_SIZE_MODE=4
++NUM_PACKETS=260
+
+# Habilita lectura periódica de STATUS durante el tráfico.
+# Permite observar CNT_DROP incrementándose en el log.
++POLL_STATUS=1
+
+# Cada 10 ciclos se lee STATUS.
++POLL_PERIOD_CYCLES=10
++IRQEN=16
++IRQ_CLEAR=1
++INTER_PKT_CYCLES=0
++BP_MODE=0
++BP_DELAY=0
++CLEAR_FIFO_CNT=1

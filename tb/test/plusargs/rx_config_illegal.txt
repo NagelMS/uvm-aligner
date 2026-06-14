@@ -1,0 +1,25 @@
+# =============================================================================
+# CASO: Paquete RX con size y offset ilegal
+# Objetivo: enviar configuraciones invalidas de offset y size en rx
+# El DUT debe rechazar las transacciones activando error
+# No se debe transmitir nada
+#====================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+#Configuracion valida de salida
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+#Activa modo de combinaciones de tamaño de rx invalido
++RX_SIZE_MODE=4
++NUM_PACKETS=5
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=2
++IRQEN=0
++IRQ_CLEAR=0
++INTER_PKT_CYCLES=2
++BP_MODE=0
++BP_DELAY=0
++CLEAR_FIFO_CNT=0

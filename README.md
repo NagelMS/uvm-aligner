@@ -34,21 +34,21 @@ Los siguientes puntos son aleatorizables:
 
 - [x] Flujo de paquetes validos y combinación legal de de size y offset en registro de control.
 
-- [ ] Rx size mayor que control size
+- [x] Rx size mayor que control size
 
-- [ ] Rx size menor que control size
+- [x] Rx size menor que control size
 
-- [ ] Cambio de datos de control en ejecución.
+- [x] Cambio de datos de control en ejecución.
 
 - [ ] Lectura activa de estado.
 
-- [ ] Paquete Rx con size y offset ilegal
+- [x] Paquete Rx con size y offset ilegal
 
-- [ ] Saturación de paquetes ilegales para llevar a CNT_DROP al máximo y generar el clear
+- [x] Saturación de paquetes ilegales para llevar a CNT_DROP al máximo y generar el clear
 
-- [ ] Escritura invalida (offset y size ilegal) a registro de control
+- [x] Escritura invalida (offset y size ilegal) a registro de control
 
-- [ ] Escritura a registro de estado
+- [x] Escritura a registro de estado
 
 - [x] FIFO de RX lleno
 

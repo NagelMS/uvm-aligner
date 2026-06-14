@@ -1,0 +1,25 @@
+# =============================================================================
+# CASO: rx_size > ctrl_size
+# Objetivo: configurar transacciones con mayor tamaño que la salida
+# El transmisor envia menos cantidad de la que recibe
+# Se van acumulando transacciones en la FIFO
+#====================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_MEDIUM
+
+#Configuracion valida menor al rx en cofiguracion
++CTRL_SIZE=1
++CTRL_OFFSET=0
+
+#Modo para generar size de rx mayores a control
++RX_SIZE_MODE=1
++NUM_PACKETS=20
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=2
++IRQ_CLEAR=1
++IRQEN=31
++CLEAR_FIFO_CNT=1
++INTER_PKT_CYCLES=0
++BP_MODE=0
++BP_DELAY=0

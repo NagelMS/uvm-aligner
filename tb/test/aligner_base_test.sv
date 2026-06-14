@@ -18,25 +18,26 @@ class aligner_base_test extends uvm_test;
 
   // ── Knobs (defaults; sobreescritos por plusargs en build_phase) ───────────
   // CTRL_SIZE=0 → ctrl_size aleatorio entre {1,2,4} en run_phase
-  int unsigned ctrl_size          = 4;
-  int unsigned ctrl_offset        = 0;
-  int unsigned irqen_val_i        = 0;
+  int unsigned ctrl_size               = 4;
+  int unsigned ctrl_offset             = 0;
+  int unsigned irqen_val_i             = 0;
 
-  int unsigned n_packets          = 4;
-  int unsigned inter_pkt_cycles   = 0;
-  int          rx_size_mode_i     = 0;
+  int unsigned n_packets               = 4;
+  int unsigned inter_pkt_cycles        = 0;
+  int          rx_size_mode_i          = 0;
 
-  int          bp_mode_i          = 0;
-  int unsigned bp_delay           = 0;
+  int          bp_mode_i               = 0;
+  int unsigned bp_delay                = 0;
 
-  bit          poll_status_en     = 0;
-  int unsigned poll_period_cycles = 5;
+  bit          poll_status_en          = 0;
+  int unsigned poll_period_cycles      = 5;
 
-  bit          irq_clear_en       = 0;
-  bit          illegal_ctrl_en    = 0;
-  int unsigned illegal_ctrl_size  = 3;
-  int unsigned illegal_ctrl_off   = 0;
-  bit          clear_fifo_cnt_en  = 0;
+  bit          irq_clear_en            = 0;
+  bit          illegal_ctrl_en         = 0;
+  int unsigned illegal_ctrl_size       = 3;
+  int unsigned illegal_ctrl_off        = 0;
+  bit          clear_fifo_cnt_en       = 0;
+  bit          illegal_status_write_en = 0;
 
   // NUM_CTRL_CHANGES=N → la secuencia aplica N cambios aleatorios legales
   // de CTRL distribuidos uniformemente a lo largo del tráfico
@@ -76,7 +77,8 @@ class aligner_base_test extends uvm_test;
     if ($value$plusargs("ILLEGAL_CTRL_SIZE=%d",  tmp)) illegal_ctrl_size  = tmp;
     if ($value$plusargs("ILLEGAL_CTRL_OFFSET=%d",tmp)) illegal_ctrl_off   = tmp;
     if ($value$plusargs("CLEAR_FIFO_CNT=%d",     tmp)) clear_fifo_cnt_en  = bit'(tmp);
-
+    //Escritura ilegal de status
+    if ($value$plusargs("ILLEGAL_STATUS_WRITE=%d", tmp)) illegal_status_write_en = bit'(tmp);
     // Cambios de CTRL durante la ejecución
     if ($value$plusargs("NUM_CTRL_CHANGES=%d",   tmp)) num_ctrl_changes   = tmp;
 
@@ -143,6 +145,8 @@ class aligner_base_test extends uvm_test;
     seq.illegal_ctrl_size     = illegal_ctrl_size;
     seq.illegal_ctrl_offset   = illegal_ctrl_off;
     seq.clear_fifo_cnt_en     = clear_fifo_cnt_en;
+    
+    seq.illegal_status_write_en      = illegal_status_write_en;
 
     seq.num_ctrl_changes  = num_ctrl_changes;
 

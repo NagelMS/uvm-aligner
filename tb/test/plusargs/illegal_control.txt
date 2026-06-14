@@ -1,0 +1,28 @@
+#=====================================================================
+#Caso: Escritura invalida de configuración (offset/size) en registro CTRL
+# Objetivo: enviar configuraciones invalidas de offset y size a escritura
+# en CTRL, debe ser rechazadas y no realizar la escritura de ellas
+# deben mantener el valor anterior
+#====================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+#Escritura inicial de configuracion
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+#Activa transacciones ilegales de control con tamaño ilegal de size/offset
++ILLEGAL_CTRL=1
++ILLEGAL_CTRL_SIZE=3
++ILLEGAL_CTRL_OFFSET=0
++NUM_PACKETS=8
++RX_SIZE_MODE=0
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=2
++IRQEN=31
++IRQ_CLEAR=0
++INTER_PKT_CYCLES=2
++BP_MODE=0
++BP_DELAY=0
++CLEAR_FIFO_CNT=0

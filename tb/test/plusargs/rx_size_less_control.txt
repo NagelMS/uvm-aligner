@@ -1,0 +1,25 @@
+# =============================================================================
+# CASO: rx_size < ctrl_size
+# Objetivo: configurar transacciones con menor tamaño que la salida
+# El transmisor debe esperar a tener el tamaño necesario de bytes para transmitir
+# Se van acumulando en la FIFO hasta tener el valor requerido
+#====================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_MEDIUM
+
+#Tamaño máximo de control
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+#Configuracion de size rx menor al control
++RX_SIZE_MODE=2
++NUM_PACKETS=20
++BP_MODE=1
++BP_DELAY=3
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=3
++IRQEN=31
++IRQ_CLEAR=1
++INTER_PKT_CYCLES=0
++CLEAR_FIFO_CNT=0

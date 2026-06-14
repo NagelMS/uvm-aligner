@@ -1,0 +1,28 @@
+# =============================================================================
+# CASO: Cambio de datos de control durante la ejecución 
+# Objetivo: realizar cambios que aplican una combinación aleatoria legal 
+# nueva de (CTRL.SIZE, CTRL.OFFSET) mientras hay transacciones 
+#RX en curso y datos en los FIFOs.
+# =============================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+#Tamaño de salida de los paquetes
++CTRL_SIZE=1
++CTRL_OFFSET=0
+
+#Cantidad de cambios
++NUM_CTRL_CHANGES=4
++NUM_PACKETS=40
+
+#Modo tamaños legales aleatorios
++RX_SIZE_MODE=0
++INTER_PKT_CYCLES=1
++BP_MODE=1
++BP_DELAY=2
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=5
++IRQEN=31
++IRQ_CLEAR=1
++CLEAR_FIFO_CNT=0

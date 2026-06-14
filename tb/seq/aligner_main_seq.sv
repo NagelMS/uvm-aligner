@@ -76,6 +76,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
   int unsigned illegal_ctrl_size     = 3;
   int unsigned illegal_ctrl_offset   = 0;
   bit          clear_fifo_cnt_en     = 0;
+  bit          illegal_status_write_en = 0;
 
   function new(string name = "aligner_main_seq");
     super.new(name);
@@ -245,6 +246,35 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       $sformatf("[RX %0d/%0d] %s", idx+1, n_packets, tr.convert2string()), UVM_MEDIUM)
   endtask
 
+  task do_illegal_status_write();
+  uvm_status_e   status;
+  uvm_reg_data_t val = 32'hFFFF_FFFF;  // intento de escribir todos los bits
+
+  `uvm_info("SEQ",
+    "[ILLEGAL STATUS WRITE] Intentando escribir 0xFFFFFFFF a STATUS (debe dar slverr)",
+    UVM_LOW)
+
+  regmodel.STATUS.write(status, val);
+
+  if (status == UVM_IS_OK)
+    `uvm_error("SEQ",
+      "Escritura a STATUS NO generó slverr – el registro no es RO en el DUT")
+  else
+    `uvm_info("SEQ",
+      "Escritura a STATUS rechazada correctamente (slverr)", UVM_LOW)
+
+  // Verificar que STATUS no fue modificado: leer y comparar
+  regmodel.STATUS.read(status, val);
+  `uvm_info("SEQ",
+    $sformatf("[ILLEGAL STATUS WRITE] Lectura post-escritura: STATUS=0x%08h", val),
+    UVM_LOW)
+
+  if (val[7:0] != 0 || val[11:8] != 0 || val[19:16] != 0)
+    `uvm_info("SEQ",
+      $sformatf("STATUS tiene valores activos: CNT_DROP=%0d RX_LVL=%0d TX_LVL=%0d",
+                val[7:0], val[11:8], val[19:16]), UVM_MEDIUM)
+endtask
+
   // ══════════════════════════════════════════════════════════════════════════
   // Body: orquestación principal
   // ══════════════════════════════════════════════════════════════════════════
@@ -282,6 +312,9 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
     // ── 2. Opcional: write ilegal a CTRL (pre-tráfico) ────────────────────
     if (illegal_ctrl_write_en)
       do_illegal_ctrl_write();
+      
+    if (illegal_status_write_en)
+      do_illegal_status_write();
 
     // ── 3. Configurar backpressure TX ─────────────────────────────────────
     if (tx_drv != null)

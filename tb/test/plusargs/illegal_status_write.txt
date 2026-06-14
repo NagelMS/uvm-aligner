@@ -1,0 +1,21 @@
+# =============================================================================
+# CASO: Escritura ilegal a registro STATUS (RO)
+# Objetivo: Realizar escritura a un registro de solo lectura
+# Se debe activar el pslverr=1 en el ciclo APB de escritura
+# El registro STATUS no se modifica (todos los campos permanecen en reset=0)
+# =============================================================================
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+#Activa la transacción ilegal de escritura a STATUS
++ILLEGAL_STATUS_WRITE=1
++NUM_PACKETS=0
++POLL_STATUS=0
++IRQEN=0
++IRQ_CLEAR=0
++INTER_PKT_CYCLES=0
++BP_MODE=0
++BP_DELAY=0
++CLEAR_FIFO_CNT=0
