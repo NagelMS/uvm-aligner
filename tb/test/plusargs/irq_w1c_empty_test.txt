@@ -1,0 +1,33 @@
+# =============================================================================
+# CASO: Generar W1C en IRQ de FIFO vacía (RX_E y TX_E)
+#
+# Objetivo: verificar el mecanismo Write-1-to-Clear del registro IRQ para
+# los bits de FIFO vacía.
+# =============================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+# Configuración legal del alineador (size=4, offset=0)
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+# 8 paquetes con tamaños legales aleatorios
++NUM_PACKETS=8
++RX_SIZE_MODE=0
++INTER_PKT_CYCLES=4
++NUM_CTRL_CHANGES=0
+
+# Sin backpressure: TX drena inmediatamente, TX FIFO cicla a vacío
++BP_MODE=0
++BP_DELAY=0
+
+# Monitoreo de STATUS durante el tráfico
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=3
+
+# Solo RX_E (bit0) y TX_E (bit2) habilitados: IRQEN = 0b00101 = 5
++IRQEN=5
+
+# W1C al final: lee IRQ, escribe los bits activos para limpiarlos
++IRQ_CLEAR=1

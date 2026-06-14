@@ -1,0 +1,35 @@
+# =============================================================================
+# CASO: Deshabilitar todos los campos de habilitación de interrupciones
+#
+# Objetivo: verificar que con IRQEN=0 el irq permanece en 0 durante
+# toda la simulación, aunque el registro IRQ sí capture los eventos
+# 
+# =============================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
+# Configuración legal del alineador
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
+# 20 paquetes con tamaños legales aleatorios para generar múltiples eventos
++NUM_PACKETS=20
++RX_SIZE_MODE=0
++INTER_PKT_CYCLES=0
++NUM_CTRL_CHANGES=0
+
+# Backpressure aleatorio: estresa distintos niveles del TX FIFO
++BP_MODE=2
++BP_DELAY=0
+
+# Monitoreo de STATUS durante el tráfico
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=3
+
+# IRQEN=0: todas las interrupciones deshabilitadas → irq debe ser 0 siempre
++IRQEN=0
+
+# Leer IRQ al final para verificar que los flags sí se capturaron
+# (aunque irq no pulsó) y limpiar con W1C
++IRQ_CLEAR=1
