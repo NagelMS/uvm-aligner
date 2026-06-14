@@ -149,7 +149,7 @@ module aligner_cov #(
     }
 
     // Relación rx_size vs ctrl_size (solo en transferencias reales)
-    cp_rx_vs_ctrl: coverpoint rx_vs_ctrl iff rx_xfer {
+    cp_rx_vs_ctrl: coverpoint rx_vs_ctrl {
       bins lt_ctrl = {RX_LT_CTRL};
       bins eq_ctrl = {RX_EQ_CTRL};
       bins gt_ctrl = {RX_GT_CTRL};
@@ -207,7 +207,6 @@ module aligner_cov #(
 
   endgroup
 
-  // ── Sequences ─────────────────────────────────────────────────────────────
   // Transferencia RX completada (valid && ready en el mismo ciclo)
   sequence s_rx_xfer;
     md_rx_valid && md_rx_ready;
