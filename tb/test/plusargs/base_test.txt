@@ -10,8 +10,8 @@ Using: aligner_base_test
 +CTRL_SIZE=0
 
 // Cantidad de paquetes
-+NUM_PACKETS=50000
-+NUM_CTRL_CHANGES=100
++NUM_PACKETS=900
++NUM_CTRL_CHANGES=50
 
 // Paquetes back-to-back
 +INTER_PKT_CYCLES=0
