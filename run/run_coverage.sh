@@ -70,7 +70,7 @@ for f in "${TESTS[@]}"; do
         RUN=$((RUN + 1))
         printf "  [%3d/%3d] %-45s seed=%-5d" $RUN $TOTAL "$TEST" $SEED
 
-        make run_cov PLUSARGS_FILE="$(basename "$f")" SEED="$SEED" >/dev/null 2>&1
+        make run_cov PLUSARGS_FILE="$(basename "$f")" SEED="$SEED" CM_NAME="${TEST}_seed${SEED}" >/dev/null 2>&1
         RC=$?
 
         # Guardar log individual de la simulacion
