@@ -39,10 +39,16 @@ module aligner_cov #(
 
   // Transferencia APB completada sin error
   wire apb_ok     = psel & penable & pready & !pslverr;
+  // Cualquier transferencia APB completada (con o sin slverr)
+  wire apb_done   = psel & penable & pready;
   // Escritura legal al registro CTRL (addr 0x0000)
   wire ctrl_wr    = apb_ok &  pwrite & ({paddr[15:2], 2'b00} == 16'h0000);
   // Lectura del registro STATUS (addr 0x000C)
   wire status_rd  = apb_ok & !pwrite & ({paddr[15:2], 2'b00} == 16'h000C);
+  // Lectura del registro IRQ (addr 0x00F4)
+  wire irq_reg_rd = apb_ok & !pwrite & ({paddr[15:2], 2'b00} == 16'h00F4);
+  // Escritura al registro IRQEN (addr 0x00F0)
+  wire irqen_wr   = apb_ok &  pwrite & ({paddr[15:2], 2'b00} == 16'h00F0);
   // Transferencia RX completada
   wire rx_xfer    = md_rx_valid & md_rx_ready;
 
@@ -118,6 +124,14 @@ module aligner_cov #(
       bins low   = {[4'd1 : 4'd3]};
       bins high  = {[4'd4 : 4'd7]};
       bins full  = {FIFO_DEPTH[3:0]};
+    }
+
+    // Contador de paquetes ilegales descartados
+    cp_cnt_drop: coverpoint prdata[7:0] {
+      bins zero = {8'd0};
+      bins low  = {[8'd1   : 8'd63]};
+      bins high = {[8'd64  : 8'd254]};
+      bins max  = {8'd255};   // saturación → dispara IRQ_MAX_DROP
     }
 
     // Cruz completa: incluye el caso corner de ambas FIFOs llenas
@@ -215,6 +229,85 @@ module aligner_cov #(
     }
 
   endgroup
+
+  // Samplea cada transacción APB completada (incluyendo las que generan slverr)
+  // para verificar que el mapa de registros completo fue ejercido en lectura y escritura.
+  covergroup cg_apb_map @(posedge clk iff apb_done);
+
+    cp_addr: coverpoint {paddr[15:2], 2'b00} {
+      bins ctrl_reg   = {16'h0000};
+      bins status_reg = {16'h000C};
+      bins irqen_reg  = {16'h00F0};
+      bins irq_reg    = {16'h00F4};
+      bins unmapped   = default;
+    }
+
+    cp_rw: coverpoint pwrite {
+      bins rd = {1'b0};
+      bins wr = {1'b1};
+    }
+
+    // Cruz: cada registro accedido tanto en lectura como en escritura donde aplica.
+    // Incluye casos de error: STATUS-write (slverr), unmapped-rd, unmapped-wr.
+    cx_addr_rw: cross cp_addr, cp_rw;
+
+  endgroup
+
+
+  // Samplea cada lectura del registro IRQ (0x00F4) para observar cuáles flags
+  // están activos en el momento en que el software los lee/limpia.
+  covergroup cg_irq_source @(posedge clk iff irq_reg_rd);
+
+    cp_rx_empty_flag: coverpoint prdata[0] {
+      bins clear = {1'b0};
+      bins set   = {1'b1};
+    }
+    cp_rx_full_flag: coverpoint prdata[1] {
+      bins clear = {1'b0};
+      bins set   = {1'b1};
+    }
+    cp_tx_empty_flag: coverpoint prdata[2] {
+      bins clear = {1'b0};
+      bins set   = {1'b1};
+    }
+    cp_tx_full_flag: coverpoint prdata[3] {
+      bins clear = {1'b0};
+      bins set   = {1'b1};
+    }
+    cp_max_drop_flag: coverpoint prdata[4] {
+      bins clear = {1'b0};
+      bins set   = {1'b1};
+    }
+
+    // ¿Se dispararon múltiples fuentes simultáneamente?
+    cp_flag_combo: coverpoint prdata[4:0] {
+      bins none   = {5'b00000};
+      bins single = {5'b00001, 5'b00010, 5'b00100, 5'b01000, 5'b10000};
+      bins multi  = default;
+    }
+
+  endgroup
+
+
+  // Samplea cada escritura al registro IRQEN (0x00F0) para verificar que
+  // distintas configuraciones de habilitación de IRQ son ejercidas.
+  covergroup cg_irqen_config @(posedge clk iff irqen_wr);
+
+    cp_rx_empty_en: coverpoint pwdata[0] { bins dis={1'b0}; bins en={1'b1}; }
+    cp_rx_full_en:  coverpoint pwdata[1] { bins dis={1'b0}; bins en={1'b1}; }
+    cp_tx_empty_en: coverpoint pwdata[2] { bins dis={1'b0}; bins en={1'b1}; }
+    cp_tx_full_en:  coverpoint pwdata[3] { bins dis={1'b0}; bins en={1'b1}; }
+    cp_max_drop_en: coverpoint pwdata[4] { bins dis={1'b0}; bins en={1'b1}; }
+
+    // Casos extremos: todos deshabilitados (IRQEN=0) y todos habilitados (IRQEN=31)
+    cp_irqen_val: coverpoint pwdata[4:0] {
+      bins all_dis = {5'b00000};
+      bins all_en  = {5'b11111};
+      bins partial = default;
+    }
+
+  endgroup
+
 
   // Transferencia RX completada (valid && ready en el mismo ciclo)
   sequence s_rx_xfer;
@@ -314,18 +407,24 @@ chk_irq_one_cycle: assert property (p_irq_one_cycle_pulse)
   cov_irq_pulse_ok: cover property (p_irq_pulse_ok);
 
 
-  cg_ctrl      m_cg_ctrl;
-  cg_fifo_lvls m_cg_fifo_lvls;
-  cg_rx        m_cg_rx;
-  cg_tx        m_cg_tx;
-  cg_irq       m_cg_irq;
+  cg_ctrl         m_cg_ctrl;
+  cg_fifo_lvls    m_cg_fifo_lvls;
+  cg_rx           m_cg_rx;
+  cg_tx           m_cg_tx;
+  cg_irq          m_cg_irq;
+  cg_apb_map      m_cg_apb_map;
+  cg_irq_source   m_cg_irq_source;
+  cg_irqen_config m_cg_irqen_config;
 
   initial begin
-    m_cg_ctrl      = new();
-    m_cg_fifo_lvls = new();
-    m_cg_rx        = new();
-    m_cg_tx        = new();
-    m_cg_irq       = new();
+    m_cg_ctrl         = new();
+    m_cg_fifo_lvls    = new();
+    m_cg_rx           = new();
+    m_cg_tx           = new();
+    m_cg_irq          = new();
+    m_cg_apb_map      = new();
+    m_cg_irq_source   = new();
+    m_cg_irqen_config = new();
   end
 
 endmodule
