@@ -95,13 +95,76 @@ cov_report:
 	urg -dir $(COV_DIR) -report cov_report -format both
 	@echo "Reporte listo en: cov_report/dashboard.html"
 
+SEEDS = 1 7 13 23 37 42 59 71 83 97 \
+        104 128 199 256 333 500 611 777 888 1001
+
+multiple_seeds: check
+ifndef ERR_STATUS
+	@mkdir -p logs
+	@pass=0; fail=0; \
+	for s in $(SEEDS); do \
+	    echo "▶ Seed $$s ..."; \
+	    ./simv +ntb_random_seed=$$s \
+	           $(_FILE_PLUSARGS) \
+	           -cm line+cond+fsm+tgl+branch+assert -cm_dir $(COV_DIR) \
+           	   -cm_name seed_$$s \
+	           -l logs/seed_$$s.log \
+	    > /dev/null 2>&1; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "  ✓ PASS (seed $$s)"; \
+	        pass=$$((pass+1)); \
+	    else \
+	        echo "  ✗ FAIL (seed $$s) → ver logs/seed_$$s.log"; \
+	        fail=$$((fail+1)); \
+	    fi; \
+	done; 
+endif
+
+CORNER_TESTS = cnt_drop_max.txt          \
+               control_change.txt        \
+               fill_rx_fifo_test.txt     \
+               fill_tx_fifo_test.txt     \
+               illegal_control.txt       \
+               illegal_status_write.txt  \
+               irq_all_disabled_test.txt \
+               irq_w1c_empty_test.txt    \
+               rx_config_illegal.txt     \
+               rx_legal_comb_test.txt    \
+               rx_size_greater_control.txt \
+               rx_size_less_control.txt  \
+               tx_err_test.txt
+
+corner_cases: check
+ifndef ERR_STATUS
+	@mkdir -p logs
+	@pass=0; fail=0; \
+	for t in $(CORNER_TESTS); do \
+	    name=$$(basename $$t .txt); \
+	    pa=$$(grep -E '^\+' $(TB_DIR)/test/plusargs/$$t 2>/dev/null | tr '\n' ' '); \
+	    echo "▶ $$name ..."; \
+	    ./simv +ntb_random_seed=$(SEED) \
+	           $$pa \
+	           -cm line+cond+fsm+tgl+branch+assert -cm_dir $(COV_DIR) \
+	           -cm_name $$name \
+	           -l logs/$$name.log \
+	    > /dev/null 2>&1; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "  ✓ PASS"; \
+	        pass=$$((pass+1)); \
+	    else \
+	        echo "  ✗ FAIL → ver logs/$$name.log"; \
+	        fail=$$((fail+1)); \
+	    fi; \
+	done;
+endif
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 clean:
 	rm -rf simv* csrc
 	rm -rf vc_hdrs.h .vcsmx_rebuild *.log
 	rm -rf work/* *.svshell vcs_version *.vcd
-	rm -rf $(COV_DIR) cov_report
+	rm -rf $(COV_DIR) cov_report logs
 
 help:
 	@echo "****************************************************************"
@@ -117,6 +180,7 @@ help:
 	@echo "*    make coverage         Compila + corre con cobertura       *"
 	@echo "*    make comp_cov         Solo compila con cobertura          *"
 	@echo "*    make run_cov          Solo corre; acumula en coverage.vdb *"
+	@echo "*    make regress_seeds    Corre base_test con 20 semillas     *"
 	@echo "*    make verdi            Abre Verdi con coverage.vdb         *"
 	@echo "*    make cov_report       Genera reporte HTML via URG         *"
 	@echo "*                                                              *"
@@ -126,8 +190,9 @@ help:
 	@echo "*                         ej: PLUSARGS_FILE=base_test.txt      *"
 	@echo "*                                                              *"
 	@echo "*  Flujo típico para acumular cobertura de varios tests:       *"
-	@echo "*    make coverage  PLUSARGS_FILE=base_test.txt   SEED=1       *"
-	@echo "*    make run_cov   PLUSARGS_FILE=fill_rx_fifo_test.txt SEED=2 *"
-	@echo "*    make run_cov   PLUSARGS_FILE=fill_tx_fifo_test.txt SEED=3 *"
+	@echo "*    make coverage        PLUSARGS_FILE=base_test.txt   SEED=1 *"
+	@echo "*    make multiple_seeds  PLUSARGS_FILE=base_test.txt          *"
+	@echo "*    make run_cov         PLUSARGS_FILE=fill_rx_fifo_test.txt SEED=2 *"
+	@echo "*    make run_cov         PLUSARGS_FILE=fill_tx_fifo_test.txt SEED=3 *"
 	@echo "*    make verdi                                                *"
 	@echo "****************************************************************"
