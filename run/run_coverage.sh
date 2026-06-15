@@ -77,11 +77,17 @@ for f in "${TESTS[@]}"; do
         LOG="$LOG_DIR/${TEST}_seed${SEED}.log"
         [ -f simv.log ] && cp simv.log "$LOG"
 
+        # Leer conteos del resumen final de UVM (lineas "UVM_ERROR :    N")
+        UVM_ERRS=$(grep -oE "UVM_ERROR\s*:\s*[0-9]+" "$LOG" 2>/dev/null \
+                   | grep -oE "[0-9]+" | head -1)
+        UVM_FATS=$(grep -oE "UVM_FATAL\s*:\s*[0-9]+" "$LOG" 2>/dev/null \
+                   | grep -oE "[0-9]+" | head -1)
+
         if [ $RC -ne 0 ]; then
             echo -e "  ${RED}FAIL (make error)${NC}"
             FAIL=$((FAIL + 1))
-        elif grep -qE "UVM_FATAL|UVM_ERROR \[" "$LOG" 2>/dev/null; then
-            echo -e "  ${RED}FAIL (UVM error)${NC}"
+        elif [ "${UVM_ERRS:-0}" -gt 0 ] || [ "${UVM_FATS:-0}" -gt 0 ]; then
+            echo -e "  ${RED}FAIL (UVM errors=${UVM_ERRS:-0} fatals=${UVM_FATS:-0})${NC}"
             FAIL=$((FAIL + 1))
         else
             echo -e "  ${GRN}PASS${NC}"
