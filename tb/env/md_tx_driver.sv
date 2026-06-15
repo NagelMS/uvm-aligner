@@ -5,7 +5,8 @@ typedef enum int {
   MD_TX_ALWAYS_READY = 0,  // Acepta todo inmediatamente
   MD_TX_ALWAYS_STALL = 1,  // Nunca acepta 
   MD_TX_RANDOM       = 2,  // Ready aleatorio
-  MD_TX_FIXED_DELAY  = 3   // Ready después de bp_delay ciclos de espera
+  MD_TX_FIXED_DELAY  = 3,  // Ready después de bp_delay ciclos de espera
+  MD_TX_WITH_ERR     = 4   // Simula errores
 } md_tx_bp_mode_e;
 
 
@@ -97,6 +98,11 @@ class md_tx_driver #(
         end else begin
           vif.ready <= 1'b1; // Sin datos: permanecer listo
         end
+      end
+
+      MD_TX_WITH_ERR: begin
+        vif.ready <= 1'b1;
+        vif.err   <= (vif.valid) ? $urandom_range(0, 1) : 1'b0;
       end
 
       default: vif.ready <= 1'b1;

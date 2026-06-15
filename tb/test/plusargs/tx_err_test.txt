@@ -1,0 +1,28 @@
+# =============================================================================
+# CASO: Error desde downstream en interfaz TX (md_tx_err=1)
+#
+# Objetivo: verificar que el DUT maneja correctamente el caso en que el
+# consumidor TX reporta md_tx_err=1 durante transferencias activas.
+#
+# =============================================================================
+
++UVM_TESTNAME=aligner_base_test
++UVM_VERBOSITY=UVM_HIGH
+
++CTRL_SIZE=4
++CTRL_OFFSET=0
+
++NUM_PACKETS=200
++RX_SIZE_MODE=0
++INTER_PKT_CYCLES=0
++NUM_CTRL_CHANGES=0
+
+# Modo 4: acepta siempre pero inyecta md_tx_err=1 aleatorio
++BP_MODE=4
++BP_DELAY=0
+
++POLL_STATUS=1
++POLL_PERIOD_CYCLES=3
+
++IRQEN=0
++IRQ_CLEAR=1

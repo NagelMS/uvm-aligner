@@ -40,8 +40,6 @@ Los siguientes puntos son aleatorizables:
 
 - [x] Cambio de datos de control en ejecución.
 
-- [ ] Lectura activa de estado.
-
 - [x] Paquete Rx con size y offset ilegal
 
 - [x] Saturación de paquetes ilegales para llevar a CNT_DROP al máximo y generar el clear
@@ -54,9 +52,9 @@ Los siguientes puntos son aleatorizables:
 
 - [x] FIFO de Tx lleno
 
-- [ ] Generar w1c en IRQ de FIFO vacía
+- [x] Generar w1c en IRQ de FIFO vacía
 
-- [ ] Deshabilitar todos los campos de habilitación de interrupciones
+- [x] Deshabilitar todos los campos de habilitación de interrupciones
 
 
 

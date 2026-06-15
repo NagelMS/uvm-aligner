@@ -286,6 +286,20 @@ module aligner_cov #(
   endproperty
   cov_apb_2cycle_response: cover property (p_apb_2cycle_response);
 
+  property p_irq_one_cycle_pulse;
+  @(posedge clk) disable iff (!reset_n)
+    $rose(irq) |=> !irq;
+endproperty
+chk_irq_one_cycle: assert property (p_irq_one_cycle_pulse)
+  else $error("[COV] ASSERT FAIL: irq se mantuvo alto más de 1 ciclo de reloj");
+
+  // Cover: confirmar que sí ocurrió al menos un pulso de 1 ciclo
+  property p_irq_pulse_ok;
+    @(posedge clk) disable iff (!reset_n)
+      $rose(irq) ##1 !irq;
+  endproperty
+  cov_irq_pulse_ok: cover property (p_irq_pulse_ok);
+
 
   cg_ctrl      m_cg_ctrl;
   cg_fifo_lvls m_cg_fifo_lvls;
