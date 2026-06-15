@@ -97,6 +97,9 @@ class aligner_base_test extends uvm_test;
       irq_clear_en, illegal_ctrl_en, clear_fifo_cnt_en,
       num_ctrl_changes),
       UVM_MEDIUM)
+
+    if (bp_mode_i == 4)
+      uvm_config_db #(bit)::set(this, "env.scb", "ignore_tx_err", 1'b1);
   endfunction
 
   // ── Run phase: configurar y lanzar la secuencia ───────────────────────────

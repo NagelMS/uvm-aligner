@@ -13,7 +13,7 @@
 +CTRL_OFFSET=0
 
 #Modo para generar size de rx mayores a control
-+RX_SIZE_MODE=1
++RX_SIZE_MODE=2
 +NUM_PACKETS=20
 +POLL_STATUS=1
 +POLL_PERIOD_CYCLES=2

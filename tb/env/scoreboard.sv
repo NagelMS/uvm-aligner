@@ -10,6 +10,7 @@ class scoreboard #(
 
   int m_checks_failed_count = 0;
   int m_checks_passed_count = 0;
+  bit ignore_tx_err         = 0;
 
   // Refleja el valor de CTRL en el DUT; se actualiza al ver escrituras APB.
   // Inicial = reset del DUT: SIZE=1, OFFSET=0.
@@ -40,6 +41,7 @@ class scoreboard #(
 
     if (!uvm_config_db #(ALIGNER)::get(this, "", "ral", m_ral))
       `uvm_fatal("SCB", "RAL no se encuentra en config_db; instanciar en el ambiente")
+    void'(uvm_config_db #(bit)::get(this, "", "ignore_tx_err", ignore_tx_err));
 
     m_analysis_imp_apb_bus = new("m_analysis_imp_apb_bus", this);
     m_analysis_imp_md_rx   = new("m_analysis_imp_md_rx",   this);
@@ -257,9 +259,11 @@ class scoreboard #(
         m_checks_passed_count++;
     end
 
-    if (item.err) begin
+    if (item.err && !ignore_tx_err) begin
       `uvm_error("SCB", "md_tx_err=1 inesperado en transferencia normal")
       m_checks_failed_count++;
+    end else if (item.err) begin
+      `uvm_info("SCB", "md_tx_err=1 inyectado intencionalmente (ignore_tx_err=1)", UVM_HIGH)
     end else
       m_checks_passed_count++;
 
