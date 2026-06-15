@@ -120,6 +120,44 @@ ifndef ERR_STATUS
 	done; 
 endif
 
+CORNER_TESTS = cnt_drop_max.txt          \
+               control_change.txt        \
+               fill_rx_fifo_test.txt     \
+               fill_tx_fifo_test.txt     \
+               illegal_control.txt       \
+               illegal_status_write.txt  \
+               irq_all_disabled_test.txt \
+               irq_w1c_empty_test.txt    \
+               rx_config_illegal.txt     \
+               rx_legal_comb_test.txt    \
+               rx_size_greater_control.txt \
+               rx_size_less_control.txt  \
+               tx_err_test.txt
+
+corner_cases: check
+ifndef ERR_STATUS
+	@mkdir -p logs
+	@pass=0; fail=0; \
+	for t in $(CORNER_TESTS); do \
+	    name=$$(basename $$t .txt); \
+	    pa=$$(grep -E '^\+' $(TB_DIR)/test/plusargs/$$t 2>/dev/null | tr '\n' ' '); \
+	    echo "▶ $$name ..."; \
+	    ./simv +ntb_random_seed=$(SEED) \
+	           $$pa \
+	           -cm line+cond+fsm+tgl+branch+assert -cm_dir $(COV_DIR) \
+	           -cm_name $$name \
+	           -l logs/$$name.log \
+	    > /dev/null 2>&1; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "  ✓ PASS"; \
+	        pass=$$((pass+1)); \
+	    else \
+	        echo "  ✗ FAIL → ver logs/$$name.log"; \
+	        fail=$$((fail+1)); \
+	    fi; \
+	done;
+endif
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 clean:
