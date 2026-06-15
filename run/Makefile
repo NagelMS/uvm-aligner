@@ -106,8 +106,8 @@ ifndef ERR_STATUS
 	    echo "▶ Seed $$s ..."; \
 	    ./simv +ntb_random_seed=$$s \
 	           $(_FILE_PLUSARGS) \
-	           $(COV_RUN_OPTS) \
-	           -cm_name seed_$$s \
+	           -cm line+cond+fsm+tgl+branch+assert -cm_dir $(COV_DIR) \
+           	   -cm_name seed_$$s \
 	           -l logs/seed_$$s.log \
 	    > /dev/null 2>&1; \
 	    if [ $$? -eq 0 ]; then \
