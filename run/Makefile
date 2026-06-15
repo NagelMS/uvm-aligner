@@ -95,13 +95,38 @@ cov_report:
 	urg -dir $(COV_DIR) -report cov_report -format both
 	@echo "Reporte listo en: cov_report/dashboard.html"
 
+SEEDS = 1 7 13 23 37 42 59 71 83 97 \
+        104 128 199 256 333 500 611 777 888 1001
+
+multiple_seeds: comp_cov
+ifndef ERR_STATUS
+	@mkdir -p logs
+	@pass=0; fail=0; \
+	for s in $(SEEDS); do \
+	    echo "▶ Seed $$s ..."; \
+	    ./simv +ntb_random_seed=$$s \
+	           $(_FILE_PLUSARGS) \
+	           $(COV_RUN_OPTS) \
+	           -cm_name seed_$$s \
+	           -l logs/seed_$$s.log \
+	    > /dev/null 2>&1; \
+	    if [ $$? -eq 0 ]; then \
+	        echo "  ✓ PASS (seed $$s)"; \
+	        pass=$$((pass+1)); \
+	    else \
+	        echo "  ✗ FAIL (seed $$s) → ver logs/seed_$$s.log"; \
+	        fail=$$((fail+1)); \
+	    fi; \
+	done; \
+endif
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 clean:
 	rm -rf simv* csrc
 	rm -rf vc_hdrs.h .vcsmx_rebuild *.log
 	rm -rf work/* *.svshell vcs_version *.vcd
-	rm -rf $(COV_DIR) cov_report
+	rm -rf $(COV_DIR) cov_report logs
 
 help:
 	@echo "****************************************************************"
@@ -117,6 +142,7 @@ help:
 	@echo "*    make coverage         Compila + corre con cobertura       *"
 	@echo "*    make comp_cov         Solo compila con cobertura          *"
 	@echo "*    make run_cov          Solo corre; acumula en coverage.vdb *"
+	@echo "*    make regress_seeds    Corre base_test con 20 semillas     *"
 	@echo "*    make verdi            Abre Verdi con coverage.vdb         *"
 	@echo "*    make cov_report       Genera reporte HTML via URG         *"
 	@echo "*                                                              *"
