@@ -98,7 +98,7 @@ cov_report:
 SEEDS = 1 7 13 23 37 42 59 71 83 97 \
         104 128 199 256 333 500 611 777 888 1001
 
-multiple_seeds: comp_cov
+multiple_seeds: check
 ifndef ERR_STATUS
 	@mkdir -p logs
 	@pass=0; fail=0; \
@@ -117,7 +117,7 @@ ifndef ERR_STATUS
 	        echo "  ✗ FAIL (seed $$s) → ver logs/seed_$$s.log"; \
 	        fail=$$((fail+1)); \
 	    fi; \
-	done; \
+	done; 
 endif
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -152,8 +152,9 @@ help:
 	@echo "*                         ej: PLUSARGS_FILE=base_test.txt      *"
 	@echo "*                                                              *"
 	@echo "*  Flujo típico para acumular cobertura de varios tests:       *"
-	@echo "*    make coverage  PLUSARGS_FILE=base_test.txt   SEED=1       *"
-	@echo "*    make run_cov   PLUSARGS_FILE=fill_rx_fifo_test.txt SEED=2 *"
-	@echo "*    make run_cov   PLUSARGS_FILE=fill_tx_fifo_test.txt SEED=3 *"
+	@echo "*    make coverage        PLUSARGS_FILE=base_test.txt   SEED=1 *"
+	@echo "*    make multiple_seeds  PLUSARGS_FILE=base_test.txt          *"
+	@echo "*    make run_cov         PLUSARGS_FILE=fill_rx_fifo_test.txt SEED=2 *"
+	@echo "*    make run_cov         PLUSARGS_FILE=fill_tx_fifo_test.txt SEED=3 *"
 	@echo "*    make verdi                                                *"
 	@echo "****************************************************************"
