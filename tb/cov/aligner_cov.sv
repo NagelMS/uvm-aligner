@@ -93,10 +93,11 @@ module aligner_cov #(
       ignore_bins illegal_4x3 = binsof(cp_size.size_4) && binsof(cp_offset.offset_3);
     }
 
-    // Corner case: cambio de CTRL mientras hay un paquete RX en vuelo
+    // Con arquitectura single-thread, md_rx_valid es siempre 0 durante ctrl_wr.
+    // Se ignora el bin imposible para que no arrastre la cobertura.
     cp_ctrl_with_rx: coverpoint md_rx_valid {
-      bins sin_trafico = {1'b0};
-      bins con_trafico = {1'b1};
+      bins         sin_trafico = {1'b0};
+      ignore_bins  con_trafico = {1'b1};
     }
 
   endgroup
@@ -182,8 +183,16 @@ module aligner_cov #(
       bins offset_3 = {2'd3};
     }
 
-    // Cruz: todas las combinaciones de (size, offset) que produce el alineador
-    cx_tx_size_offset: cross cp_tx_size, cp_tx_offset;
+    // Cruz: solo combinaciones que el DUT puede producir (CTRL legal).
+    // Las combinaciones ilegales son rechazadas por el DUT con slverr y nunca
+    // llegan al bus TX, por lo que se excluyen del objetivo de cobertura.
+    cx_tx_size_offset: cross cp_tx_size, cp_tx_offset {
+      ignore_bins illegal_2x1 = binsof(cp_tx_size.size_2) && binsof(cp_tx_offset.offset_1);
+      ignore_bins illegal_2x3 = binsof(cp_tx_size.size_2) && binsof(cp_tx_offset.offset_3);
+      ignore_bins illegal_4x1 = binsof(cp_tx_size.size_4) && binsof(cp_tx_offset.offset_1);
+      ignore_bins illegal_4x2 = binsof(cp_tx_size.size_4) && binsof(cp_tx_offset.offset_2);
+      ignore_bins illegal_4x3 = binsof(cp_tx_size.size_4) && binsof(cp_tx_offset.offset_3);
+    }
 
   endgroup
 
