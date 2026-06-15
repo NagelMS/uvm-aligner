@@ -58,6 +58,12 @@ module aligner_cov #(
     if (!reset_n) ctrl_size <= 3'd1;   // reset default del DUT
     else if (ctrl_wr) ctrl_size <= pwdata[2:0];
 
+  // Sombra de IRQEN para cruzar con los flags IRQ al momento de la lectura
+  logic [4:0] irqen_shadow;
+  always_ff @(posedge clk or negedge reset_n)
+    if (!reset_n) irqen_shadow <= 5'b0;
+    else if (irqen_wr) irqen_shadow <= pwdata[4:0];
+
   // Relación entre el tamaño del paquete RX y la configuración CTRL
   typedef enum logic [1:0] {
     RX_LT_CTRL = 2'd0,
@@ -157,6 +163,14 @@ module aligner_cov #(
       bins size_4 = {3'd4};
     }
 
+    // Offset del paquete RX entrante
+    cp_rx_offset: coverpoint md_rx_offset {
+      bins offset_0 = {2'd0};
+      bins offset_1 = {2'd1};
+      bins offset_2 = {2'd2};
+      bins offset_3 = {2'd3};
+    }
+
     // Respuesta de error del DUT (paquete ilegal rechazado)
     cp_rx_err: coverpoint md_rx_err {
       bins no_err = {1'b0};
@@ -170,8 +184,13 @@ module aligner_cov #(
       bins gt_ctrl = {RX_GT_CTRL};
     }
 
-    cx_size_err:     cross cp_rx_size, cp_rx_err;
-    cx_size_vs_ctrl: cross cp_rx_size, cp_rx_vs_ctrl;
+    cx_size_err:         cross cp_rx_size, cp_rx_err;
+    cx_size_vs_ctrl:     cross cp_rx_size, cp_rx_vs_ctrl;
+
+    // Cruz triple: verifica que todas las combinaciones de (offset, size, err)
+    // fueron ejercitadas. Las combinaciones legales deben tener err=0 y las
+    // ilegales err=1, garantizando cobertura bidireccional del protocolo RX.
+    cx_rx_off_size_err:  cross cp_rx_offset, cp_rx_size, cp_rx_err;
 
   endgroup
 
@@ -247,9 +266,31 @@ module aligner_cov #(
       bins wr = {1'b1};
     }
 
+    cp_slverr: coverpoint pslverr {
+      bins ok  = {1'b0};
+      bins err = {1'b1};
+    }
+
     // Cruz: cada registro accedido tanto en lectura como en escritura donde aplica.
     // Incluye casos de error: STATUS-write (slverr), unmapped-rd, unmapped-wr.
     cx_addr_rw: cross cp_addr, cp_rw;
+
+    // Cruz con slverr: verifica que los escenarios de error APB fueron efectivamente ejercitados.
+    cx_addr_rw_err: cross cp_addr, cp_rw, cp_slverr {
+      // Lecturas a registros mapeados nunca generan error
+      ignore_bins rd_ctrl_ok_only   = binsof(cp_addr.ctrl_reg)   && binsof(cp_rw.rd) && binsof(cp_slverr.err);
+      ignore_bins rd_status_ok_only = binsof(cp_addr.status_reg) && binsof(cp_rw.rd) && binsof(cp_slverr.err);
+      ignore_bins rd_irqen_ok_only  = binsof(cp_addr.irqen_reg)  && binsof(cp_rw.rd) && binsof(cp_slverr.err);
+      ignore_bins rd_irq_ok_only    = binsof(cp_addr.irq_reg)    && binsof(cp_rw.rd) && binsof(cp_slverr.err);
+      // Escrituras a IRQEN e IRQ siempre OK (W1C no da error)
+      ignore_bins wr_irqen_ok_only  = binsof(cp_addr.irqen_reg)  && binsof(cp_rw.wr) && binsof(cp_slverr.err);
+      ignore_bins wr_irq_ok_only    = binsof(cp_addr.irq_reg)    && binsof(cp_rw.wr) && binsof(cp_slverr.err);
+      // Escritura a STATUS siempre da error (registro RO)
+      ignore_bins wr_status_err_only = binsof(cp_addr.status_reg) && binsof(cp_rw.wr) && binsof(cp_slverr.ok);
+      // Acceso a dirección unmapped siempre da error
+      ignore_bins rd_unmap_err_only = binsof(cp_addr.unmapped) && binsof(cp_rw.rd) && binsof(cp_slverr.ok);
+      ignore_bins wr_unmap_err_only = binsof(cp_addr.unmapped) && binsof(cp_rw.wr) && binsof(cp_slverr.ok);
+    }
 
   endgroup
 
@@ -285,6 +326,23 @@ module aligner_cov #(
       bins single = {5'b00001, 5'b00010, 5'b00100, 5'b01000, 5'b10000};
       bins multi  = default;
     }
+
+    // Estado del IRQEN al momento de leer el registro IRQ.
+    // Permite cruzar cada flag con su enable para verificar que cada IRQ
+    // fue observada tanto habilitada como deshabilitada.
+    cp_en_rx_empty:  coverpoint irqen_shadow[0] { bins dis = {1'b0}; bins en = {1'b1}; }
+    cp_en_rx_full:   coverpoint irqen_shadow[1] { bins dis = {1'b0}; bins en = {1'b1}; }
+    cp_en_tx_empty:  coverpoint irqen_shadow[2] { bins dis = {1'b0}; bins en = {1'b1}; }
+    cp_en_tx_full:   coverpoint irqen_shadow[3] { bins dis = {1'b0}; bins en = {1'b1}; }
+    cp_en_max_drop:  coverpoint irqen_shadow[4] { bins dis = {1'b0}; bins en = {1'b1}; }
+
+    // Cruz IRQ × IRQEN: la verificación clave del masking.
+    // Cada flag debe observarse set con su enable tanto en 0 como en 1.
+    cx_rxe_vs_en:  cross cp_rx_empty_flag,  cp_en_rx_empty;
+    cx_rxf_vs_en:  cross cp_rx_full_flag,   cp_en_rx_full;
+    cx_txe_vs_en:  cross cp_tx_empty_flag,  cp_en_tx_empty;
+    cx_txf_vs_en:  cross cp_tx_full_flag,   cp_en_tx_full;
+    cx_drop_vs_en: cross cp_max_drop_flag,  cp_en_max_drop;
 
   endgroup
 
