@@ -1,3 +1,4 @@
+// Cobertura funcional de aligner: covergroups y cover properties para validar que el DUT fue ejercitado en una amplia variedad de escenarios.
 module aligner_cov #(
   parameter int ALGN_DATA_WIDTH = 32,
   parameter int FIFO_DEPTH      = 8
@@ -52,7 +53,7 @@ module aligner_cov #(
   // Transferencia RX completada
   wire rx_xfer    = md_rx_valid & md_rx_ready;
 
-  // Sombra de CTRL.SIZE para la comparación rx_vs_ctrl
+  // Sombra del tamaño configurado en el registro CTRL para cruzar con los tamaños de paquete RX observados.
   logic [2:0] ctrl_size;
   always_ff @(posedge clk or negedge reset_n)
     if (!reset_n) ctrl_size <= 3'd1;   // reset default del DUT
@@ -320,7 +321,7 @@ module aligner_cov #(
       bins set   = {1'b1};
     }
 
-    // ¿Se dispararon múltiples fuentes simultáneamente?
+    // Número de flags IRQ activos (0 a 5) para verificar casos de múltiples IRQ simultáneas.
     cp_flag_combo: coverpoint prdata[4:0] {
       bins none   = {5'b00000};
       bins single = {5'b00001, 5'b00010, 5'b00100, 5'b01000, 5'b10000};
@@ -487,9 +488,7 @@ chk_irq_one_cycle: assert property (p_irq_one_cycle_pulse)
 
 endmodule
 
-// ── Bind al DUT ───────────────────────────────────────────────────────────────
-// Se instancia aligner_cov dentro de cada instancia de cfs_aligner sin
-// modificar el RTL. Los puertos se conectan explícitamente por nombre.
+// Instancia de la cobertura vinculada al DUT para que las covergroups y cover properties monitoreen las señales reales durante la simulación.
 bind cfs_aligner aligner_cov #(
   .ALGN_DATA_WIDTH(ALGN_DATA_WIDTH),
   .FIFO_DEPTH     (FIFO_DEPTH)

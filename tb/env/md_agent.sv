@@ -1,6 +1,7 @@
 `ifndef MD_AGENT_SV
 `define MD_AGENT_SV
 
+// Agente UVM para el Alineador, que incluye un secuenciador, drivers para MD RX y MD TX, y monitores para ambos lados. 
 class md_agent #(
   parameter int ALGN_DATA_WIDTH = 32
 ) extends uvm_agent;
@@ -21,7 +22,7 @@ class md_agent #(
     super.new(name, parent);
   endfunction
 
-  // build_phase
+  // Etapa de construcción: crea los monitores para RX y TX, y si el agente está activo, también crea el secuenciador y los drivers.
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
@@ -35,7 +36,7 @@ class md_agent #(
     end
   endfunction
 
-  // connect_phase
+  // Etapa de conexión: conecta los analysis ports de los monitores a los analysis ports del agente y conecta el secuenciador a los drivers si el agente está activo.
   function void connect_phase(uvm_phase phase);
     rx_ap = rx_mon.ap;
     tx_ap = tx_mon.ap;

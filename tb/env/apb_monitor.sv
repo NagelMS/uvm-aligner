@@ -1,3 +1,4 @@
+// Monitor UVM para el Alineador, que observa las señales del bus APB, detecta las transferencias completas
 class apb_monitor extends uvm_monitor;
   `uvm_component_utils(apb_monitor)
 
@@ -9,6 +10,7 @@ class apb_monitor extends uvm_monitor;
     super.new(name, parent);
   endfunction
 
+  // Etapa de construcción: obtiene la interfaz virtual desde config_db y reporta un error fatal si no se encuentra.
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     ap = new("ap", this);
@@ -16,6 +18,7 @@ class apb_monitor extends uvm_monitor;
       `uvm_fatal("NO_VIF", "apb_monitor: no se encontró apb_vif en config_db")
   endfunction
 
+  // Etapa de ejecución: ciclo infinito de observación de las señales APB, detección de transferencias completas (psel=1, penable=1, pready=1) y publicación de transacciones en el analysis port.
   task run_phase(uvm_phase phase);
     apb_seq_item tr;
     forever begin
