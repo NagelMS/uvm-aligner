@@ -1,12 +1,5 @@
-///////////////////////////////////////////////////////////////////////////////
-// File:        apb_ral_adapter.sv
-// Description: Adaptador RAL↔APB. Convierte entre uvm_reg_bus_op (operación
-//              abstracta del modelo de registros) y apb_seq_item (transacción
-//              concreta del bus APB).
-//
-//              reg2bus(): RAL le pide una escritura/lectura → crea apb_seq_item
-//              bus2reg(): el monitor publica un apb_seq_item → RAL lo ingiere
-///////////////////////////////////////////////////////////////////////////////
+// Adaptador RAL para el bus APB del DUT. Convierte operaciones de registro en transacciones APB y viceversa, 
+// permitiendo que los secuenciadores de registro configuren el DUT a través del RAL mientras el driver APB maneja las transacciones reales. 
 `ifndef APB_RAL_ADAPTER_SV
 `define APB_RAL_ADAPTER_SV
 
@@ -19,7 +12,7 @@ class apb_ral_adapter extends uvm_reg_adapter;
     provides_responses   = 0;  // el driver actualiza el item antes de item_done
   endfunction
 
-  // ── Modelo de registros → transacción APB ────────────────────────────────
+  // Transaccion de registro a APB: convierte una operación de lectura/escritura en un item de secuencia APB
   virtual function uvm_sequence_item reg2bus(const ref uvm_reg_bus_op rw);
     apb_seq_item tr = apb_seq_item::type_id::create("tr");
     tr.addr  = rw.addr[15:0];
@@ -28,7 +21,7 @@ class apb_ral_adapter extends uvm_reg_adapter;
     return tr;
   endfunction
 
-  // ── Transacción APB → modelo de registros ────────────────────────────────
+  // Transacción APB a registro: convierte un item de secuencia APB en una operación de lectura/escritura para el RAL, incluyendo el manejo de errores
   virtual function void bus2reg(uvm_sequence_item bus_item,
                                 ref uvm_reg_bus_op rw);
     apb_seq_item tr;

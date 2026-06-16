@@ -1,6 +1,7 @@
 `ifndef MD_SEQ_ITEM_SV
 `define MD_SEQ_ITEM_SV
 
+// Clase de item de secuencia para transacciones MD RX y MD TX, con campos para datos, offset, tamaño, error y un flag de error recibido.
 class md_seq_item #(
   parameter int ALGN_DATA_WIDTH   = 32,
   parameter int ALGN_OFFSET_WIDTH = (ALGN_DATA_WIDTH <= 8) ? 1 : $clog2(ALGN_DATA_WIDTH/8),
@@ -32,8 +33,7 @@ class md_seq_item #(
     super.new(name);
   endfunction
 
-  // Restricciones (Falta ajustar para el uso de PlusArgs)
-
+  // Restricciones 
   constraint c_size_nonzero {
     size != 0;
   }
@@ -54,8 +54,6 @@ class md_seq_item #(
     err == 1'b0;
   }
 
-  // Métodos Extra
-
   // convert2string: imprime el item de manera legible en los logs UVM.
   function string convert2string();
     return $sformatf(
@@ -64,7 +62,7 @@ class md_seq_item #(
     );
   endfunction
 
-  // is_legal: retorna 1 si la combinación (offset,size) es legal.
+  // is_legal: función para verificar si la combinación de offset y size es legal según las reglas de alineación del bus. 
   function bit is_legal();
     if (size == 0) return 0;
     return (((BUS_BYTES + offset) % size) == 0);

@@ -9,7 +9,7 @@ typedef enum int {
   MD_TX_WITH_ERR     = 4   // Simula errores
 } md_tx_bp_mode_e;
 
-
+// Driver para el lado MD TX del Alineador, con capacidad de simular diferentes condiciones de backpressure y errores
 class md_tx_driver #(
   parameter int ALGN_DATA_WIDTH = 32
 ) extends uvm_driver #(md_seq_item #(ALGN_DATA_WIDTH));
@@ -29,7 +29,7 @@ class md_tx_driver #(
     super.new(name, parent);
   endfunction
 
-  // build_phase
+  // build_phase: obtiene la interfaz virtual y lee la configuración de backpressure desde config_db
   function void build_phase(uvm_phase phase);
     int mode_int;
     super.build_phase(phase);
@@ -47,7 +47,7 @@ class md_tx_driver #(
       ; // ya asignado
   endfunction
 
-  // run_phase
+  // run_phase: ciclo eterno de control del ready para simular diferentes condiciones de backpressure
   task run_phase(uvm_phase phase);
     // Inicializar: el receptor empieza listo (ready=1) y sin error.
     @(posedge vif.clk); #1;
@@ -65,7 +65,7 @@ class md_tx_driver #(
     end
   endtask
 
-  // _apply_backpressure: lógica de control de ready
+  // Lógica para aplicar backpressure según el modo configurado, controlando la señal ready y opcionalmente err en la interfaz MD TX
   task _apply_backpressure();
     case (bp_mode)
 
@@ -109,7 +109,7 @@ class md_tx_driver #(
     endcase
   endtask
 
-  // set_bp_mode: API para cambiar el modo en tiempo de simulación
+  // Función para cambiar el modo de backpressure durante la simulación, con reporte informativo. Se puede llamar desde las secuencias para probar diferentes condiciones dinámicamente.
   function void set_bp_mode(md_tx_bp_mode_e mode, int unsigned delay = 0);
     bp_mode = mode;
     if (delay > 0) bp_delay = delay;

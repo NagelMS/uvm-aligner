@@ -2,6 +2,8 @@
 `uvm_analysis_imp_decl(_md_tx)
 `uvm_analysis_imp_decl(_apb_bus)
 
+// Scoreboard: recibe transacciones APB, MD RX y MD TX a través de análisis imp, verifica la lógica de control (CTRL) 
+// y la correspondencia entre RX y TX esperados.
 class scoreboard #(
   parameter int DEPTH = 8,
   parameter int WIDTH = 32
@@ -28,6 +30,7 @@ class scoreboard #(
 
   ALIGNER m_ral;
 
+  // Análisis imp para recibir transacciones de los monitores y procesarlas
   uvm_analysis_imp_apb_bus #(apb_seq_item,         scoreboard #(DEPTH, WIDTH)) m_analysis_imp_apb_bus;
   uvm_analysis_imp_md_rx   #(md_seq_item #(WIDTH),  scoreboard #(DEPTH, WIDTH)) m_analysis_imp_md_rx;
   uvm_analysis_imp_md_tx   #(md_seq_item #(WIDTH),  scoreboard #(DEPTH, WIDTH)) m_analysis_imp_md_tx;
@@ -36,6 +39,8 @@ class scoreboard #(
     super.new(name, parent);
   endfunction
 
+  // Build phase: obtiene el RAL del ambiente para acceder a los registros y configurar la lógica de verificación, 
+  // y crea los análisis imp para conectar con los monitores.
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
 
@@ -48,8 +53,7 @@ class scoreboard #(
     m_analysis_imp_md_tx   = new("m_analysis_imp_md_tx",   this);
   endfunction
 
-  // ── APB write/read dispatch ───────────────────────────────────────────────
-
+  // APB: verifica escrituras y lecturas APB, actualiza la configuración de CTRL y genera el TX esperado a partir de los RX recibidos
   function void write_apb_bus(apb_seq_item item);
     logic [15:0] apb_addr = {item.addr[15:2], 2'b00};
     if (item.write) check_apb_write(item, apb_addr);
@@ -67,6 +71,7 @@ class scoreboard #(
                   size_config, new_size, m_rx_byte_q.size()))
   endfunction
 
+  // Verificación de transacciones MD RX y MD TX, acumulando bytes RX y generando el TX esperado para comparar con el MD TX observado
   function void check_apb_write(apb_seq_item item, logic [15:0] addr);
     case (addr)
       16'h0000: begin
@@ -110,6 +115,7 @@ class scoreboard #(
     endcase
   endfunction
 
+  // Verificación de lecturas APB, comparando con el valor reflejado en el RAL (mirroring) y verificando el manejo de slverr
   function void check_apb_read(apb_seq_item item, logic [15:0] addr);
     uvm_reg        registro;
     uvm_reg_data_t mirror_val;
@@ -137,6 +143,7 @@ class scoreboard #(
     endcase
   endfunction
 
+  // Funciones auxiliares para verificación: manejo de slverr y comparación de campos con reporte de errores detallado
   function void check_pslverr(apb_seq_item item, logic exp_error, string msg);
     if (item.slverr !== exp_error) begin
       `uvm_error("SCB",
@@ -148,6 +155,7 @@ class scoreboard #(
     end
   endfunction
 
+  // Comparación de campos con reporte de errores detallado
   function void check_field(logic [31:0] obtenido, logic [31:0] esperado, string msg);
     if (obtenido !== esperado) begin
       `uvm_error("SCB",
@@ -159,8 +167,8 @@ class scoreboard #(
     end
   endfunction
 
-  // ── MD RX: acumula bytes y genera TX esperado ─────────────────────────────
-
+  // Verificación de transacciones MD RX: valida la legalidad del RX según offset/size y la configuración actual de CTRL, 
+  // acumula bytes RX y genera el TX esperado para comparar con el MD TX observado
   function void write_md_rx(md_seq_item #(WIDTH) item);
     int unsigned rx_size   = int'(item.size);
     int unsigned rx_offset = int'(item.offset);
@@ -194,11 +202,14 @@ class scoreboard #(
     generate_expected_tx();
   endfunction
 
+  // Función para determinar si un RX es válido según la configuración actual de CTRL y el tamaño/offset del RX
   function automatic bit rx_valido(int unsigned offset, int unsigned size);
     if (size == 0) return 0;
     return ((4 + offset) % size == 0);
   endfunction
 
+  // Genera el próximo TX esperado a partir de los bytes RX acumulados y la configuración actual de CTRL, 
+  // y lo encola en m_expected_tx_q para comparar con los MD TX observados. Se llama al ver un nuevo RX o al cambiar CTRL (flush_on_ctrl_change).
   function void generate_expected_tx();
     automatic int unsigned tx_size   = int'(size_config);
     automatic int unsigned tx_offset = int'(offset_config);
@@ -214,8 +225,7 @@ class scoreboard #(
     end
   endfunction
 
-  // ── MD TX: verifica contra el TX esperado ────────────────────────────────
-
+  // Verificación de transacciones MD RX y MD TX, acumulando bytes RX y generando el TX esperado para comparar con el MD TX observado
   function void write_md_tx(md_seq_item #(WIDTH) item);
     expected_tx_t exp;
 
@@ -272,8 +282,7 @@ class scoreboard #(
                 item.data, item.offset, item.size), UVM_MEDIUM)
   endfunction
 
-  // ── Reporte final ─────────────────────────────────────────────────────────
-
+  // Report phase: muestra un resumen de la cantidad de checks pasados y fallidos durante la simulación
   function void report_phase(uvm_phase phase);
     `uvm_info("SCB", $sformatf(
       {"\n============================================\n",

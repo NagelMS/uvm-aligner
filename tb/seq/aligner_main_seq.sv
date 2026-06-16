@@ -1,25 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// aligner_main_seq.sv
-//
-// Secuencia principal del cfs_aligner. Sus knobs cubren la mayoría de los
-// casos del README:
-//
-//   Flujo válido          rx_size_mode = RX_SIZE_RAND   (default)
-//   RX > CTRL size        rx_size_mode = RX_SIZE_GT_CTRL
-//   RX < CTRL size        rx_size_mode = RX_SIZE_LT_CTRL
-//   Cambios de CTRL       num_ctrl_changes > 0  (randomizados via UVM RNG)
-//   Lectura activa STATUS poll_status_en = 1  (hilo concurrente)
-//   Paquete RX ilegal     rx_size_mode = RX_SIZE_ILLEGAL
-//   Saturación CNT_DROP   rx_size_mode = RX_SIZE_ILLEGAL + n_packets alto
-//   CTRL write ilegal     illegal_ctrl_write_en = 1
-//   CLR bit (CNT_DROP)    clear_fifo_cnt_en = 1
-//   FIFO RX/TX lleno      bp_mode = MD_TX_ALWAYS_STALL + n_packets alto
-//   IRQ W1C               irq_clear_en = 1 + irqen_val apropiado
-//
-// Se lanza sobre env.md_agt.sqr.
-// Operaciones RAL usan internamente el APB sequencer del default_map.
-///////////////////////////////////////////////////////////////////////////////
-
 typedef enum int {
   RX_SIZE_RAND,        // aleatorio legal (default)
   RX_SIZE_MATCH_CTRL,  // rx_size == ctrl_size  (passthrough directo)
@@ -28,50 +6,51 @@ typedef enum int {
   RX_SIZE_ILLEGAL      // combos ilegales de size/offset en RX
 } rx_size_mode_e;
 
-
+// Secuencia principal de prueba para cfs_aligner. 
+// Configura registros, genera tráfico RX, y monitorea STATUS e IRQs. 
+// Permite aplicar cambios de CTRL durante la ejecución y casos esquina vía RAL.
 class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
   `uvm_object_utils(aligner_main_seq)
 
-  // ── Handles (asignados por el test antes de start) ────────────────────────
+  // Punteros a componentes y modelos de registro
   ALIGNER            regmodel;
   md_tx_driver #(32) tx_drv;
 
-  // ── Configuración inicial de registros ────────────────────────────────────
+  // Parámetros de prueba con valores por defecto, sobreescribibles por plusargs
   int unsigned ctrl_size        = 4;
   int unsigned ctrl_offset      = 0;
   bit [4:0]    irqen_val        = 5'h00;
 
-  // ── Tráfico RX ────────────────────────────────────────────────────────────
+  // Parámetros de tráfico RX
   int unsigned   n_packets        = 4;
   int unsigned   inter_pkt_cycles = 0;
   rx_size_mode_e rx_size_mode     = RX_SIZE_RAND;
 
-  // ── Cambios de CTRL durante la ejecución ─────────────────────────────────
-  // Con num_ctrl_changes > 0 la secuencia randomiza un nuevo combo legal
-  // de (size, offset) cada n_packets/(num_ctrl_changes+1) paquetes.
   int unsigned num_ctrl_changes = 0;
 
+  // Cambios de CTRL durante la ejecución: tamaños y offsets legales aleatorios
   rand bit [2:0] rnd_ctrl_size;
   rand bit [1:0] rnd_ctrl_offset;
 
+  // Restricciones para los cambios aleatorios de CTRL: sólo combos legales de size/offset
   constraint c_legal_ctrl_change {
     rnd_ctrl_size inside {3'd1, 3'd2, 3'd4};
     (rnd_ctrl_size == 3'd4) -> (rnd_ctrl_offset == 2'd0);
     (rnd_ctrl_size == 3'd2) -> (rnd_ctrl_offset inside {2'd0, 2'd2});
   }
 
-  // ── Control de backpressure TX ────────────────────────────────────────────
+  // Parámetros de backpressure TX
   md_tx_bp_mode_e bp_mode  = MD_TX_ALWAYS_READY;
   int unsigned    bp_delay = 0;
 
-  // ── Monitoreo concurrente de STATUS ───────────────────────────────────────
+  // Monitoreo de STATUS durante la ejecución
   bit          poll_status_en     = 0;
   int unsigned poll_period_cycles = 5;
 
-  // ── Manejo de IRQ al final ────────────────────────────────────────────────
+  // Habilitar limpieza de IRQs con una escritura a IRQ (W1C) al final de la secuencia
   bit irq_clear_en = 0;
 
-  // ── Casos esquina via RAL ─────────────────────────────────────────────────
+  // Habilitar intentos de escrituras ilegales a CTRL y STATUS para verificar slverr del DUT
   bit          illegal_ctrl_write_en = 0;
   int unsigned illegal_ctrl_size     = 3;
   int unsigned illegal_ctrl_offset   = 0;
@@ -82,10 +61,8 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
     super.new(name);
   endfunction
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Tareas de registros
-  // ══════════════════════════════════════════════════════════════════════════
 
+  // Tarea auxiliar para configurar CTRL con un tamaño y offset específicos, y reporte del resultado
   task configure_ctrl(int unsigned size, int unsigned offset);
     uvm_status_e   status;
     uvm_reg_data_t val = (32'(offset) << 8) | 32'(size);
@@ -98,6 +75,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
         $sformatf("CTRL <- 0x%08h  (size=%0d  offset=%0d)", val, size, offset), UVM_MEDIUM)
   endtask
 
+  // Tarea auxiliar para configurar el registro IRQEN con el valor deseado, y reporte del resultado
   task configure_irqen();
     uvm_status_e status;
     regmodel.IRQEN.write(status, 32'(irqen_val));
@@ -111,6 +89,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
                   irqen_val[3], irqen_val[4]), UVM_MEDIUM)
   endtask
 
+  // Tarea para leer y reportar el valor actual de STATUS
   task read_status();
     uvm_status_e   status;
     uvm_reg_data_t val;
@@ -120,6 +99,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
                 val[7:0], val[11:8], val[19:16]), UVM_MEDIUM)
   endtask
 
+  // Tarea para manejar una IRQ: leer y reportar el valor de IRQ, limpiar las flags de IRQ con una escritura a IRQ (W1C), y reporte del resultado
   task handle_irq();
     uvm_status_e   status;
     uvm_reg_data_t irq_val;
@@ -135,6 +115,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
     end
   endtask
 
+  // Tarea para realizar una escritura ilegal a CTRL con un combo size/offset no permitido, y verificación de que el DUT responde con slverr
   task do_illegal_ctrl_write();
     uvm_status_e   status;
     uvm_reg_data_t val = (32'(illegal_ctrl_offset) << 8) | 32'(illegal_ctrl_size);
@@ -148,9 +129,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       `uvm_info("SEQ", "CTRL write ilegal rechazado correctamente (slverr)", UVM_LOW)
   endtask
 
-  // STATUS.RX_LVL sólo refleja el nivel del RX FIFO, no el buffer interno de
-  // cfs_ctrl (aligned_bytes_processed). wait_for_drain garantiza que RX y TX
-  // FIFOs estén vacíos; flush_ctrl_buffer garantiza que cfs_ctrl también lo esté.
+  // Tarea para esperar a que el DUT se drene completamente (RX_LVL=0 y TX_LVL=0) antes de aplicar un cambio de CTRL o finalizar la prueba
   task wait_for_drain();
     uvm_status_e   status;
     uvm_reg_data_t val;
@@ -160,9 +139,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
     `uvm_info("SEQ", "DUT drenado: RX_LVL=0 TX_LVL=0", UVM_MEDIUM)
   endtask
 
-  // Envía paquetes de size=1 hasta completar el word actual del buffer interno
-  // de cfs_ctrl (aligned_bytes_processed). Debe llamarse ANTES de wait_for_drain
-  // y de cualquier cambio de CTRL para garantizar que cfs_ctrl.aligned_bytes_processed==0.
+  // Tarea para enviar paquetes de relleno (fill packets) hasta completar un word del buffer interno de cfs_ctrl
   task send_fill_pkts(int unsigned n_bytes);
     for (int unsigned b = 0; b < n_bytes; b++) begin
       md_seq_item #(32) tr;
@@ -178,6 +155,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
                   n_bytes, ctrl_size), UVM_MEDIUM)
   endtask
 
+  // Tarea para limpiar el contador de drops (CNT_DROP) escribiendo un 1 al bit CLR de CTRL, y reporte del resultado
   task do_clear_fifo_cnt();
     uvm_status_e   status;
     uvm_reg_data_t val;
@@ -187,11 +165,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
     `uvm_info("SEQ", "CTRL.CLR=1 → CNT_DROP limpiado", UVM_MEDIUM)
   endtask
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Tarea de inyección de un paquete RX
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // pkt_size: bytes aceptados por el DUT (0 si paquete ilegal = dropped).
+  // Tarea para enviar un paquete RX con un tamaño generado según el modo seleccionado (rx_size_mode), y reporte del resultado
   task send_pkt(int unsigned idx, output int unsigned pkt_size);
     md_seq_item #(32) tr;
     bit ok;
@@ -246,6 +220,7 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
       $sformatf("[RX %0d/%0d] %s", idx+1, n_packets, tr.convert2string()), UVM_MEDIUM)
   endtask
 
+  // Tarea para realizar una escritura ilegal a STATUS con un valor no permitido, y verificación de que el DUT responde con slverr y no modifica STATUS
   task do_illegal_status_write();
   uvm_status_e   status;
   uvm_reg_data_t val = 32'hFFFF_FFFF;  // intento de escribir todos los bits
@@ -275,15 +250,10 @@ class aligner_main_seq extends uvm_sequence #(uvm_sequence_item);
                 val[7:0], val[11:8], val[19:16]), UVM_MEDIUM)
 endtask
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Body: orquestación principal
-  // ══════════════════════════════════════════════════════════════════════════
+  // Tarea body principal de la secuencia: configuración inicial, generación de tráfico RX con posibles cambios de CTRL, monitoreo de STATUS, manejo de IRQs, y casos esquina. Permite configurar todos los parámetros relevantes vía plusargs.
   task body();
     bit          traffic_done = 0;
     int unsigned ctrl_change_interval;
-    // Rastrea cuántos bytes parciales hay en el buffer interno de cfs_ctrl
-    // (aligned_bytes_processed). Permite calcular el relleno necesario antes
-    // de un CTRL change para garantizar que aligned_bytes_processed == 0.
     int unsigned pending_bytes = 0;
     int unsigned actual_pkt_size;
 
@@ -305,22 +275,22 @@ endtask
                            ? n_packets / (num_ctrl_changes + 1)
                            : 0;
 
-    // ── 1. Setup inicial ──────────────────────────────────────────────────
+    // Configuración inicial de CTRL y IRQEN
     configure_ctrl(ctrl_size, ctrl_offset);
     configure_irqen();
 
-    // ── 2. Opcional: write ilegal a CTRL (pre-tráfico) ────────────────────
+    // Habilitar escritura ilegal a CTRL y STATUS si se indicó en los plusargs
     if (illegal_ctrl_write_en)
       do_illegal_ctrl_write();
       
     if (illegal_status_write_en)
       do_illegal_status_write();
 
-    // ── 3. Configurar backpressure TX ─────────────────────────────────────
+    // Configurar modo de backpressure del driver TX si el driver está presente (en algunos tests no se instancia el driver TX)
     if (tx_drv != null)
       tx_drv.set_bp_mode(bp_mode, bp_delay);
 
-    // ── 4. Tráfico RX + monitoreo concurrente de STATUS ───────────────────
+    // Generar tráfico RX y monitorear STATUS e IRQs durante la ejecución, aplicando cambios de CTRL en los puntos calculados si se indicó en los plusargs
     fork
 
       begin  // hilo de tráfico
@@ -339,7 +309,7 @@ endtask
               `uvm_fatal("SEQ", "Fallo al randomizar combo de CTRL")
             ctrl_size     = rnd_ctrl_size;
             ctrl_offset   = rnd_ctrl_offset;
-            pending_bytes = 0;  // nueva configuración: buffer interno en 0
+            pending_bytes = 0;  
             configure_ctrl(ctrl_size, ctrl_offset);
           end
 
@@ -354,7 +324,7 @@ endtask
         traffic_done = 1;
       end
 
-      begin  // hilo de STATUS
+      begin  
         while (!traffic_done) begin
           if (poll_status_en)
             read_status();
@@ -364,7 +334,7 @@ endtask
 
     join
 
-    // ── 5. Post-tráfico ───────────────────────────────────────────────────
+    // Una vez generado todo el tráfico, esperar a que el DUT se drene completamente antes de aplicar cambios finales o finalizar la prueba
     if (clear_fifo_cnt_en)
       do_clear_fifo_cnt();
 

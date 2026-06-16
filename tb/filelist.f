@@ -1,4 +1,4 @@
-// Register model (RAL) - package, debe compilarse primero
+// Register model 
 ../tb/ral/aligner_ral_pkg.sv
 
 // Interfaces
@@ -12,7 +12,7 @@
 ../tb/env/apb_monitor.sv
 ../tb/env/apb_agent.sv
 
-// RAL adapter (depende de apb_seq_item)
+// RAL adapter
 ../tb/ral/apb_ral_adapter.sv
 
 // Environment - MD agent
@@ -23,10 +23,10 @@
 ../tb/env/md_monitor.sv
 ../tb/env/md_agent.sv
 
-// Scoreboard (depende de apb_seq_item, md_seq_item y ALIGNER)
+// Scoreboard 
 ../tb/env/scoreboard.sv
 
-// Environment top (depende de agente + adaptador + ALIGNER + scoreboard)
+// Environment
 ../tb/env/aligner_env.sv
 
 // Secuencias generales
@@ -36,7 +36,7 @@
 ../tb/test/apb_basic_test.sv
 ../tb/test/aligner_base_test.sv
 
-// Cobertura funcional (bind al DUT al final del archivo)
+// Cobertura funcional 
 ../tb/cov/aligner_cov.sv
 
 // Top testbench

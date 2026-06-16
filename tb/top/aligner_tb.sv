@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 
+// Testbench para el módulo cfs_aligner. Se encarga de generar el reloj, aplicar el reset, y configurar la conexión de interfaces para los agentes UVM.
 module aligner_tb;
 
   localparam ALGN_DATA_WIDTH = 32;
@@ -7,6 +8,7 @@ module aligner_tb;
 
   logic clk;
 
+  // Interfaces virtuales para la conexión con los agentes UVM
   apb_if apb (.clk(clk));
   md_if  rx  (.clk(clk));
   md_if  tx  (.clk(clk));
@@ -14,6 +16,7 @@ module aligner_tb;
   assign rx.reset_n = apb.reset_n;
   assign tx.reset_n = apb.reset_n;
 
+  // Instanciación del DUT
   cfs_aligner #(
     .ALGN_DATA_WIDTH(ALGN_DATA_WIDTH),
     .FIFO_DEPTH     (FIFO_DEPTH)
@@ -43,6 +46,7 @@ module aligner_tb;
     .irq         (apb.irq)
   );
 
+  // Generación del reloj: periodo de 10ns
   initial clk = 1'b0;
   always  #5 clk = ~clk;
 
@@ -54,18 +58,21 @@ module aligner_tb;
     `uvm_info("TB", "Reset released.", UVM_LOW)
   end
 
+  // Configuración de interfaces virtuales para los agentes UVM y lanzamiento de la prueba
   initial begin
     uvm_config_db #(virtual apb_if)::set(null, "uvm_test_top.*", "apb_vif", apb);
     uvm_config_db #(virtual md_if #(ALGN_DATA_WIDTH))::set(null, "uvm_test_top.*", "md_rx_vif", rx);
     uvm_config_db #(virtual md_if #(ALGN_DATA_WIDTH))::set(null, "uvm_test_top.*", "md_tx_vif", tx);
-    run_test("apb_basic_test");
+    run_test("aligner_base_test");
   end
 
+  // Timeout para evitar simulaciones infinitas
   initial begin
     #100_000;
     `uvm_fatal("TB", "TIMEOUT: Simulation exceeded time limit")
   end
 
+  // Configuración para generación de archivos VCD para análisis post-simulación
   initial begin
     $dumpfile("aligner_tb.vcd");
     $dumpvars(0, aligner_tb);

@@ -1,6 +1,7 @@
 `ifndef MD_RX_DRIVER_SV
 `define MD_RX_DRIVER_SV
 
+// Driver para el lado MD RX del Alineador, con un ancho de datos parametrizable.
 class md_rx_driver #(
   parameter int ALGN_DATA_WIDTH = 32
 ) extends uvm_driver #(md_seq_item #(ALGN_DATA_WIDTH));
@@ -9,11 +10,12 @@ class md_rx_driver #(
 
   virtual md_if #(ALGN_DATA_WIDTH) vif;
 
+  // Constructor
   function new(string name = "md_rx_driver", uvm_component parent = null);
     super.new(name, parent);
   endfunction
 
-  // build_phase
+  // Etapa de construcción: obtiene la interfaz virtual desde config_db y reporta un error fatal si no se encuentra.
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     if (!uvm_config_db #(virtual md_if #(ALGN_DATA_WIDTH))::get(
@@ -23,7 +25,7 @@ class md_rx_driver #(
          Verifica el set() en aligner_tb.sv")
   endfunction
 
-  // run_phase
+  // Etapa de ejecución: ciclo infinito de espera por items del sequencer, conducción de la transferencia MD RX y notificación al sequencer.
   task run_phase(uvm_phase phase);
     md_seq_item #(ALGN_DATA_WIDTH) req;
 
@@ -48,7 +50,7 @@ class md_rx_driver #(
     end
   endtask
 
-  // drive_idle
+  // Etapa de conducción a idle: lleva las señales a estado inactivo antes de esperar el reset.
   task _drive_idle();
     @(posedge vif.clk); #1;
     vif.valid  <= 1'b0;
@@ -57,7 +59,7 @@ class md_rx_driver #(
     vif.size   <= '0;
   endtask
 
-  //_drive_transfer
+  // Etapa de conducción de transferencia: envía los datos MD RX al DUT y espera el handshake.
   task _drive_transfer(md_seq_item #(ALGN_DATA_WIDTH) req);
     @(posedge vif.clk); #1;
     vif.valid  <= 1'b1;

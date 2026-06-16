@@ -1,23 +1,12 @@
-///////////////////////////////////////////////////////////////////////////////
-// aligner_base_test.sv
-//
-// Test general del cfs_aligner. Instancia aligner_env y lanza
-// aligner_main_seq con los parámetros leídos desde plusargs en build_phase.
-//
-// Uso:
-//   ./simv +UVM_TESTNAME=aligner_base_test +UVM_VERBOSITY=UVM_MEDIUM \
-//          +CTRL_SIZE=4 +NUM_PACKETS=10 ...
-//
-// O via archivo de plusargs desde el Makefile:
-//   make run PLUSARGS_FILE=rx_legal_comb_test.txt SEED=42
-///////////////////////////////////////////////////////////////////////////////
+// Test UVM para el módulo cfs_aligner.
+ // Configura una secuencia de prueba con parámetros personalizables a través de plusargs, 
+ // y verifica el comportamiento del módulo bajo diferentes condiciones de tráfico, control y backpressure.
 class aligner_base_test extends uvm_test;
   `uvm_component_utils(aligner_base_test)
 
   aligner_env env;
 
-  // ── Knobs (defaults; sobreescritos por plusargs en build_phase) ───────────
-  // CTRL_SIZE=0 → ctrl_size aleatorio entre {1,2,4} en run_phase
+  // Parámetros de prueba con valores por defecto, sobreescribibles por plusargs
   int unsigned ctrl_size               = 4;
   int unsigned ctrl_offset             = 0;
   int unsigned irqen_val_i             = 0;
@@ -39,15 +28,14 @@ class aligner_base_test extends uvm_test;
   bit          clear_fifo_cnt_en       = 0;
   bit          illegal_status_write_en = 0;
 
-  // NUM_CTRL_CHANGES=N → la secuencia aplica N cambios aleatorios legales
-  // de CTRL distribuidos uniformemente a lo largo del tráfico
   int unsigned num_ctrl_changes   = 0;
 
+  // Constructor
   function new(string name = "aligner_base_test", uvm_component parent = null);
     super.new(name, parent);
   endfunction
 
-  // ── Build phase: crear env y leer plusargs ────────────────────────────────
+  // Build phase: creación de componentes y lectura de plusargs para configuración de la prueba
   function void build_phase(uvm_phase phase);
     int tmp;
     super.build_phase(phase);
@@ -82,6 +70,7 @@ class aligner_base_test extends uvm_test;
     // Cambios de CTRL durante la ejecución
     if ($value$plusargs("NUM_CTRL_CHANGES=%d",   tmp)) num_ctrl_changes   = tmp;
 
+    // Reporte de configuración de la prueba
     `uvm_info("TEST", $sformatf(
       {"\n=== aligner_base_test plusargs leídos ===\n",
        "  CTRL_SIZE=%0d  CTRL_OFFSET=%0d  IRQEN=0x%02h\n",
@@ -102,13 +91,13 @@ class aligner_base_test extends uvm_test;
       uvm_config_db #(bit)::set(this, "env.scb", "ignore_tx_err", 1'b1);
   endfunction
 
-  // ── Run phase: configurar y lanzar la secuencia ───────────────────────────
+  // Run phase: creación y configuración de la secuencia principal de prueba, y lanzamiento de la secuencia
   task run_phase(uvm_phase phase);
     aligner_main_seq seq;
     phase.raise_objection(this);
     phase.phase_done.set_drain_time(this, 2000);
 
-    // CTRL_SIZE=0 → elegir tamaño legal al azar y offset alineado
+    // Si CTRL_SIZE=0, se randomiza un tamaño legal (1, 2 o 4) y un offset compatible
     if (ctrl_size == 0) begin
       int unsigned legal_sizes[3] = '{1, 2, 4};
       int unsigned pick;
@@ -124,6 +113,7 @@ class aligner_base_test extends uvm_test;
         UVM_MEDIUM)
     end
 
+    // Configuración de la secuencia principal de prueba con los parámetros leídos y randomizados, y lanzamiento de la secuencia
     seq = aligner_main_seq::type_id::create("seq");
 
     seq.regmodel = env.regmodel;

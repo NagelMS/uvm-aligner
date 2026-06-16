@@ -1,9 +1,11 @@
 `ifndef MD_MONITOR_SV
 `define MD_MONITOR_SV
 
+
+// Monitor para el lado MD RX o MD TX del Alineador, con un ancho de datos parametrizable.
 class md_monitor #(
   parameter int ALGN_DATA_WIDTH = 32,
-  parameter bit IS_RX           = 1    // 1=lado RX, 0=lado TX
+  parameter bit IS_RX           = 1
 ) extends uvm_monitor;
 
   `uvm_component_param_utils(md_monitor #(ALGN_DATA_WIDTH, IS_RX))
@@ -16,7 +18,7 @@ class md_monitor #(
     super.new(name, parent);
   endfunction
 
-  // build_phase
+  // Etapa de construcción: obtiene la interfaz virtual desde config_db y reporta un error fatal si no se encuentra. El key buscado depende de si el monitor es para RX o TX.
   function void build_phase(uvm_phase phase);
     string vif_key;
     super.build_phase(phase);
@@ -32,7 +34,7 @@ class md_monitor #(
                   IS_RX, vif_key))
   endfunction
 
-  // run_phase
+  // Etapa de ejecución: ciclo infinito de observación de las señales MD RX o MD TX, detección de handshakes y publicación de transacciones en el analysis port.
   task run_phase(uvm_phase phase);
     md_seq_item #(ALGN_DATA_WIDTH) tr;
     string side = IS_RX ? "RX" : "TX";
