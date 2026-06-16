@@ -1,3 +1,74 @@
+# Verificación de Alineador con UVM
+ 
+Entorno de verificación funcional UVM para el módulo `cfs_aligner`.
+Implementa dos agentes activos (APB y MD), un scoreboard con modelo de
+referencia y una capa de abstracción de registros (RAL).
+
+---
+ 
+## Flujo de simulación
+ 
+### Compilación y ejecución básica
+ 
+```bash
+make                # Compila y corre (sin cobertura)
+make comp           # Solo compila
+make run            # Solo corre (requiere comp previo)
+make clean          # Borra archivos generados
+```
+ 
+Argumentos opcionales:
+ 
+| Argumento        | Descripción                                      | 
+|------------------|--------------------------------------------------|
+| `SEED=<val>`     | Semilla aleatoria para `ntb_random_seed`         | 
+| `PLUSARGS_FILE=` | Archivo en `tb/test/plusargs/` con plusargs      | 
+ 
+Ejemplo:
+ 
+```bash
+make run SEED=42 PLUSARGS_FILE=rx_legal_comb_test.txt
+```
+ 
+### Cobertura
+ 
+```bash
+make coverage PLUSARGS_FILE=base_test.txt SEED=5  # Compila + corre con cobertura
+make run_cov  SEED=13 PLUSARGS_FILE=fill_rx_fifo_test.txt  # Acumula sin recompilar
+make verdi        # Abre Verdi con coverage.vdb
+```
+ 
+### Regresión con múltiples semillas
+ 
+Corre el caso seleccionado con 20 semillas predefinidas, acumulando cobertura:
+ 
+```bash
+make multiple_seeds PLUSARGS_FILE=base_test.txt
+```
+ 
+### Casos de esquina
+ 
+Itera sobre todos los archivos de plusargs disponibles, ejecutando cada
+escenario con la semilla indicada:
+ 
+```bash
+make corner_cases          # SEED=1 por defecto
+make corner_cases SEED=7
+```
+ 
+### Flujo completo de verificación
+ 
+```bash
+make coverage        PLUSARGS_FILE=base_test.txt SEED=1
+make multiple_seeds  PLUSARGS_FILE=base_test.txt
+make corner_cases
+make verdi           
+```
+ 
+---
+
+
+
 # Testplan Alineador
 
 ## Caso general
