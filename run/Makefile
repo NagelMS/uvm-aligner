@@ -95,9 +95,11 @@ cov_report:
 	urg -dir $(COV_DIR) -report cov_report -format both
 	@echo "Reporte listo en: cov_report/dashboard.html"
 
+# Semillas a utilizar:
 SEEDS = 1 7 13 23 37 42 59 71 83 97 \
         104 128 199 256 333 500 611 777 888 1001
 
+# Corre la prueba seleccionada con las 20 semillas diferentes
 multiple_seeds: check
 ifndef ERR_STATUS
 	@mkdir -p logs
@@ -120,6 +122,7 @@ ifndef ERR_STATUS
 	done; 
 endif
 
+# Listado de los casos de esquina disponibles
 CORNER_TESTS = cnt_drop_max.txt          \
                control_change.txt        \
                fill_rx_fifo_test.txt     \
@@ -134,6 +137,7 @@ CORNER_TESTS = cnt_drop_max.txt          \
                rx_size_less_control.txt  \
                tx_err_test.txt
 
+# Corre el programa con las condiciones específicas de cada caso de esquina
 corner_cases: check
 ifndef ERR_STATUS
 	@mkdir -p logs
@@ -189,10 +193,9 @@ help:
 	@echo "*    PLUSARGS_FILE=<f>     Archivo en tb/test/plusargs/        *"
 	@echo "*                         ej: PLUSARGS_FILE=base_test.txt      *"
 	@echo "*                                                              *"
-	@echo "*  Flujo típico para acumular cobertura de varios tests:       *"
-	@echo "*    make coverage        PLUSARGS_FILE=base_test.txt   SEED=1 *"
+	@echo "*  Flujo típico para acumular cobertura de todas las pruebas:  *"
+	@echo "*    make coverage        PLUSARGS_FILE=base_test.txt   SEED=5 *"
 	@echo "*    make multiple_seeds  PLUSARGS_FILE=base_test.txt          *"
-	@echo "*    make run_cov         PLUSARGS_FILE=fill_rx_fifo_test.txt SEED=2 *"
-	@echo "*    make run_cov         PLUSARGS_FILE=fill_tx_fifo_test.txt SEED=3 *"
+	@echo "*    make corner_cases                                         *"
 	@echo "*    make verdi                                                *"
 	@echo "****************************************************************"
