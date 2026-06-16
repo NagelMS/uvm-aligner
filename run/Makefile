@@ -33,7 +33,8 @@ RUN_OPTS = +ntb_random_seed=$(SEED) -l simv.log $(_FILE_PLUSARGS)
 
 COV_DIR       = coverage.vdb
 CM_NAME       = test
-COV_COMP_OPTS = -cm line+cond+fsm+tgl+branch+assert
+COV_COMP_OPTS = -cm line+cond+fsm+tgl+branch+assert \
+                -cm_hier cov_hier.cfg
 COV_RUN_OPTS  = -cm line+cond+fsm+tgl+branch+assert -cm_dir $(COV_DIR) -cm_name $(CM_NAME)
 
 
